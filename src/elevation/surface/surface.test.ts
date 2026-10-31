@@ -23,8 +23,15 @@ test('triangles', () => {
   assert.equal(sphere.indices.length / 3, 4096 * 2047 * 2)
 })
 
+test('info holds what was measured, not a second copy of the surface', () => {
+  assert.deepEqual(Object.keys(sphere.info).sort(), [
+    'belowSeaLevelShare', 'cellDegrees', 'cellDegreesLat', 'columnZeroLon',
+    'highestMetres', 'lowestMetres', 'radiusMax', 'radiusMin', 'triangles',
+  ])
+})
+
 test('the sphere is the shape it was built as', () => {
-  assert.equal(sphere.info.surface, 'sphere')
+  assert.equal(sphere.view.surface, 'sphere')
 })
 
 test('degrees per column', () => {
@@ -54,7 +61,7 @@ test('the same index count', () => {
 })
 
 test('the plane is the shape it was built as', () => {
-  assert.equal(plane.info.surface, 'plane')
+  assert.equal(plane.view.surface, 'plane')
 })
 
 test('the same index buffer, so one set of triangles serves both', () => {

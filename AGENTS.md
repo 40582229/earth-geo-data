@@ -146,11 +146,16 @@ flat.**
 
 ```bash
 npm install          # dev dependencies only; there are no runtime ones
+npm run clean        # removes dist/ and .test-dist/
 npm run build        # tsc -> dist/, with *.test.ts left out
 npm run typecheck    # tsc --noEmit over src/ and the tests beside it
-npm test             # builds dist/ and .test-dist/, then 107 checks on the data
+npm test             # builds dist/ and .test-dist/, then 109 checks on the data
 npm run prepare-data # fill data/ from a source folder (see below)
 ```
+
+Both builds empty their output folder first. `tsc` overwrites what it emits and
+leaves everything else, so without that a renamed module stays in `dist/` and
+ships beside the one that replaced it.
 
 `npm test` compiles twice: `dist/` without the tests, which is what ships, and
 `.test-dist/` with them, which is what runs. `node --test` takes one file at a
@@ -218,5 +223,5 @@ The human marks it ready, reads the review, and merges it in the browser.
 npm run typecheck && npm test
 ```
 
-All 107 checks pass, `data/` holds the four grids and nothing else, and the diff
+All 109 checks pass, `data/` holds the four grids and nothing else, and the diff
 contains no banner comments.

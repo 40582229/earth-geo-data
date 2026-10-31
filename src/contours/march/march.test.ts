@@ -169,3 +169,11 @@ test('a surface can be handed straight to the tracer', async () => {
   const surface = await loadSurface('terrain-4096')
   assert.equal(buildContours(surface).segments, reference.total)
 })
+
+test('and the lines carry the view it was built with', async () => {
+  const surface = await loadSurface('terrain-4096')
+  const lines = buildContours(surface)
+  assert.deepEqual(lines.view, surface.view)
+  assert.equal(lines.width, surface.width)
+  assert.equal(lines.height, surface.height)
+})

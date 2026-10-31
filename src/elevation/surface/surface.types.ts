@@ -1,17 +1,18 @@
 import type { Color3 } from '../../colour/types.js'
 import type { EarthGeoData } from '../../dataset/container/index.js'
-import type { ElevationSampler, GlobeView, Surface } from '../../projection/projector/index.js'
+import type { ElevationSampler, GlobeView } from '../../projection/projector/index.js'
 import type { SourceOptions } from '../../source/index.js'
 
 /* The colour of one vertex, in the space a vertex buffer wants — linear, not sRGB. */
 export type SurfaceColour = (value: number, row: number, column: number) => Color3
 
-/** What the surface turned out to be. Every number here was measured while
- *  building it, so a caller can print it or assert on it without a second pass. */
+/** What a pass over the vertices measured, plus the grid's layout in degrees.
+ *
+ *  Nothing here repeats the surface it sits on: the width, the height, the
+ *  vertex count, every setting of the view and the grid header are all fields
+ *  of the surface itself. The triangle count is the one headline number with no
+ *  field of its own, so it is here. */
 export type SurfaceInfo = {
-  grid: string
-  vertices: number
-  triangles: number
   lowestMetres: number
   highestMetres: number
   /** Distance from the centre (sphere) or height above the plane's zero (plane),
@@ -20,10 +21,7 @@ export type SurfaceInfo = {
   radiusMin: number
   radiusMax: number
   belowSeaLevelShare: number
-  radius: number
-  heightExaggeration: number
-  longitudeOffset: number
-  surface: Surface
+  triangles: number
   columnZeroLon: number
   /** Degrees of longitude per column: the span over `width` columns, not
    *  `width - 1`. The latitude step is a different number — rows include both

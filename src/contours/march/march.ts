@@ -192,17 +192,9 @@ export const buildContours = (
     positions,
     levels: outLevels,
     segments: write / 2,
-    info: {
-      width,
-      height,
-      levels: count,
-      segments: write / 2,
-      vertices: write,
-      surface: view.surface,
-      radius: view.radius,
-      heightExaggeration: view.heightExaggeration,
-      longitudeOffset: view.longitudeOffset,
-    },
+    width,
+    height,
+    view,
   }
 }
 
