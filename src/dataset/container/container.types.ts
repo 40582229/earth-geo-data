@@ -4,37 +4,58 @@ export type FieldType =
   | 'int32' | 'uint32'
   | 'float32' | 'float64'
 
-export type DataSource = {
-  name: string
-  url: string
+/** How a stored value becomes a measurement: `raw * scale + offset`. */
+export type FieldEncoding = {
+  type: FieldType
+  scale: number
+  offset: number
+}
+
+/** A run of records: `count` of them, starting at record `offset`. */
+export type RecordRun = {
+  offset: number
+  count: number
+}
+
+/** How many columns and how many rows a grid has. */
+export type GridShape = {
+  width: number
+  height: number
+}
+
+/** Who to credit for a dataset and when it was fetched; the manifest copies it. */
+export type SourceCredit = {
   licence: string
   attribution: string
   retrieved: string
 }
 
-/** One column of the payload: a flat typed array of `count` values. */
-export type FieldHeader = {
+export type DataSource = SourceCredit & {
   name: string
-  type: FieldType
+  url: string
+}
+
+/** One column of the payload: a flat typed array of `count` values. */
+export type FieldHeader = FieldEncoding & {
+  name: string
   byteOffset: number
   count: number
-  scale: number
-  offset: number
   unit?: string
 }
 
+/** What the manifest says about a field: enough to label it, not to read it. */
+export type FieldSummary = Pick<FieldHeader, 'name' | 'type'> & {
+  unit: string | null
+}
+
 /** A run of records: one polyline for `lines`, one named group for `points`. */
-export type PartHeader = {
+export type PartHeader = RecordRun & {
   name: string
-  offset: number
-  count: number
   closed?: boolean
 }
 
 /** A ring inside a polygon. `role` is what tells a fill where the holes are. */
-export type RingHeader = {
-  offset: number
-  count: number
+export type RingHeader = RecordRun & {
   role: 'outer' | 'hole'
 }
 
@@ -43,17 +64,12 @@ export type PolygonHeader = {
   rings: RingHeader[]
 }
 
-export type GridHeader = {
-  width: number
-  height: number
+export type GridHeader = GridShape & FieldEncoding & {
   layout: 'equirectangular'
   rowZero: 'north'
   columnZeroLon: number
   longitudeSpan: number
   latitudeSpan: number
-  type: FieldType
-  scale: number
-  offset: number
   unit: string
   nodata: number | null
 }
@@ -77,23 +93,18 @@ export type EarthGeoDataJson = {
 
 export type LineTopology = 'polyline' | 'segments'
 
-export type EarthGeoDataIndexEntry = {
+export type EarthGeoDataIndexEntry = SourceCredit & Partial<GridShape> & {
   id: string
   path: string
   kind: EarthGeoDataJson['kind']
   title: string
   topology?: LineTopology
-  width?: number
-  height?: number
   unit?: string
   records?: number
   bytes: number
   sourceBytes: number
   sha256: string
-  licence: string
-  attribution: string
-  retrieved: string
-  fields?: { name: string; type: FieldType; unit: string | null }[]
+  fields?: FieldSummary[]
   stats?: Record<string, number>
   band?: string
   magnitudeLimit?: number

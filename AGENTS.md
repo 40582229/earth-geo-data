@@ -132,15 +132,73 @@ src/colour/ramp/
   Import through it, never through `ramp.ts`.
 
 Two files are not modules and get no folder: `index.ts`, which is the barrel
-itself, and a folder-level `types.ts`, which holds the type two or more modules
-share — `src/colour/types.ts` keeps `Color3` because both `ramp` and
-`landcover` speak it. A type that belongs to one module goes in that module's
-`.types.ts` instead.
+itself, and a folder-level `types.ts`, which holds a type the whole folder
+speaks — `src/colour/types.ts` keeps `Color3` because it is the colour triple
+and `ramp` and `landcover` are only users of it. A type that belongs to one
+module goes in that module's `.types.ts`, however many modules import it:
+`GridShape` stays in `container.types.ts` because that is where the format
+declares it.
 
 That is the shape of the tree, and it stays that shape: every module under
 `src/` is a folder, `src/source/index.ts` is a barrel and nothing else, and each
 check lives in the `.test.ts` of the module it covers. **Nothing new is added
 flat.**
+
+## Types
+
+**One shape, one name.** "A count of records and where they start" was written
+out three times — in `PartHeader`, in `RingHeader`, and again as the parameter
+of `checkTiling` — and that parameter is the proof it is one thing. Name it,
+then compose the rest:
+
+```ts
+export type RecordRun = { offset: number; count: number }
+
+export type PartHeader = RecordRun & { name: string; closed?: boolean }
+export type RingHeader = RecordRun & { role: 'outer' | 'hole' }
+```
+
+`&`, `Pick`, `Omit` and `Partial` are how a variant is made. Never restate a
+field list and hope the copies stay in step: the compiler does not compare two
+unrelated types, so the day one of them grows a field is the day they quietly
+stop describing the same thing.
+
+**Composition is type-level only.** The envelope on disk stays flat —
+`PartHeader` is still `{ name, offset, count, closed? }`, and `container.ts`
+reads those four keys from the same JSON it always read. Never nest a field to
+make a type reusable: `data/` is the format, and the format does not move.
+
+**Two fields can share a name and share nothing else.** `FieldHeader.offset` is
+the `offset` in `raw * scale + offset`; `PartHeader.offset` is a record index.
+Both are called offset because the format says so. Extract the shape that means
+the same thing, not the one that looks the same — a `FieldHeader` built on
+`RecordRun` would let a scale factor be passed where an index belongs, and the
+type would say nothing.
+
+**A shared type lives where the thing it names is declared**, not in a folder of
+its own. `GridShape`, `RecordRun` and `FieldEncoding` are in
+`container.types.ts` because the format declares them first and everything that
+lays out a grid is downstream of it; `Color3` is in `colour/types.ts` because it
+is the colour triple itself.
+
+**Two fields is the minimum worth a name.** `{ name: string }` under a name of
+its own, or a `Record<string, number>` renamed `DatasetStats`, is a hop with
+nothing at the end of it.
+
+**Derive the variant instead of copying it:**
+
+```ts
+export type FieldSummary = Pick<FieldHeader, 'name' | 'type'> & { unit: string | null }
+```
+
+The `Pick` says which keys the manifest repeats, the rest says what changed,
+and both are on one line.
+
+**A shape with no runtime cannot be tested at runtime.** When the shape itself
+is the contract — the wire headers above — pin it with a compile-time check in
+the `.test.ts` beside it: `container.test.ts` compares `keyof FieldHeader` and
+friends against the keys the format defines, and `npm run typecheck` is what
+runs it. A field then cannot be added to a header without saying so.
 
 ## Commands
 
@@ -149,7 +207,7 @@ npm install          # dev dependencies only; there are no runtime ones
 npm run clean        # removes dist/ and .test-dist/
 npm run build        # tsc -> dist/, with *.test.ts left out
 npm run typecheck    # tsc --noEmit over src/ and the tests beside it
-npm test             # builds dist/ and .test-dist/, then 109 checks on the data
+npm test             # builds dist/ and .test-dist/, then 110 checks on the data
 npm run prepare-data # fill data/ from a source folder (see below)
 ```
 
@@ -223,5 +281,5 @@ The human marks it ready, reads the review, and merges it in the browser.
 npm run typecheck && npm test
 ```
 
-All 109 checks pass, `data/` holds the four grids and nothing else, and the diff
+All 110 checks pass, `data/` holds the four grids and nothing else, and the diff
 contains no banner comments.

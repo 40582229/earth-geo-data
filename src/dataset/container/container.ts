@@ -1,4 +1,4 @@
-import type { DataSource, EarthGeoDataJson, FieldHeader, FieldType, GridHeader, LineTopology, PartHeader, PolygonHeader } from './container.types.js'
+import type { DataSource, EarthGeoDataJson, FieldHeader, FieldType, GridHeader, LineTopology, PartHeader, PolygonHeader, RecordRun } from './container.types.js'
 
 /* earthGeoData/1: a JSON envelope, one base64 typed array, and a table that
    turns raw values into units (raw * scale + offset). Everything here checks
@@ -230,7 +230,7 @@ export class EarthGeoData {
     if (this.parts.length) this.checkTiling(this.parts, 'parts')
   }
 
-  private checkTiling(runs: readonly { offset: number; count: number }[], what: string): void {
+  private checkTiling(runs: readonly RecordRun[], what: string): void {
     const sorted = [...runs].sort((left, right) => left.offset - right.offset)
     let cursor = 0
     for (const run of sorted) {

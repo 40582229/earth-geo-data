@@ -1,5 +1,5 @@
 import type { Color3 } from '../../colour/types.js'
-import type { EarthGeoData } from '../../dataset/container/index.js'
+import type { EarthGeoData, GridShape } from '../../dataset/container/index.js'
 import type { ElevationSampler, GlobeView } from '../../projection/projector/index.js'
 import type { SourceOptions } from '../../source/index.js'
 
@@ -31,7 +31,7 @@ export type SurfaceInfo = {
 }
 
 /** A surface ready for a vertex buffer: three arrays, nothing else required. */
-export type ElevationSurface = {
+export type ElevationSurface = GridShape & {
   kind: 'surface'
   positions: Float32Array
   /** Linear rgb, one triple per vertex — the default elevation ramp unless
@@ -39,8 +39,6 @@ export type ElevationSurface = {
   colors: Float32Array
   indices: Uint32Array
   count: number
-  width: number
-  height: number
   /** The view it was built with, in full. Anything drawn on this surface should
    *  use it — `buildContours(surface)` reads it from here so the lines land on
    *  the terrain instead of on a different-sized sphere. */
