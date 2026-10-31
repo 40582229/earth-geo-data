@@ -112,10 +112,10 @@ section('decoding')
   const stats = grid.data.stats
   let lowest = Infinity
   let highest = -Infinity
-  for (let i = 0; i < grid.heights.length; i++) {
-    const h = grid.heights[i]
-    if (h < lowest) lowest = h
-    if (h > highest) highest = h
+  for (let index = 0; index < grid.heights.length; index++) {
+    const height = grid.heights[index]
+    if (height < lowest) lowest = height
+    if (height > highest) highest = height
   }
   check(
     'the heights match the converter\'s own min and max',
@@ -171,14 +171,16 @@ const plane = await loadSurface('terrain-1024', { view: { surface: 'plane' } })
   identical('the shape it was built as', plane.info.surface, 'plane')
 
   let same = true
-  for (let i = 0; i < plane.indices.length; i += 997) {
-    if (plane.indices[i] !== sphere.indices[i]) { same = false; break }
+  for (let index = 0; index < plane.indices.length; index += 997) {
+    if (plane.indices[index] !== sphere.indices[index]) { same = false; break }
   }
   check('the same index buffer, so one set of triangles serves both', same)
 
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, minY = Infinity
-  for (let i = 0; i < plane.positions.length; i += 3) {
-    const x = plane.positions[i], y = plane.positions[i + 1], z = plane.positions[i + 2]
+  for (let index = 0; index < plane.positions.length; index += 3) {
+    const x = plane.positions[index]
+    const y = plane.positions[index + 1]
+    const z = plane.positions[index + 2]
     if (x < minX) minX = x
     if (x > maxX) maxX = x
     if (z < minZ) minZ = z
@@ -193,17 +195,23 @@ const plane = await loadSurface('terrain-1024', { view: { surface: 'plane' } })
   check('east at +x, north at -z', Math.abs(minX + 6) < 1e-6 && Math.abs(minZ + 3) < 1e-6)
   check('the ocean floor is below the plane', minY < 0, `${minY.toFixed(3)}`)
 
-  // (a, c, b) is the order in the buffer, so the normal is (c - a) x (b - a)
+  // the buffer stores (first, third, second), so the normal is (third - first) x (second - first)
   let facingUp = 0
   let total = 0
-  for (let t = 0; t < plane.indices.length; t += 3 * 613) {
-    const a = plane.indices[t] * 3, c = plane.indices[t + 1] * 3, b = plane.indices[t + 2] * 3
-    const p = plane.positions
-    const ux = p[c] - p[a], uy = p[c + 1] - p[a + 1], uz = p[c + 2] - p[a + 2]
-    const vx = p[b] - p[a], vy = p[b + 1] - p[a + 1], vz = p[b + 2] - p[a + 2]
-    const ny = uz * vx - ux * vz
+  for (let triangleOffset = 0; triangleOffset < plane.indices.length; triangleOffset += 3 * 613) {
+    const firstVertex = plane.indices[triangleOffset] * 3
+    const secondVertex = plane.indices[triangleOffset + 1] * 3
+    const thirdVertex = plane.indices[triangleOffset + 2] * 3
+    const positions = plane.positions
+    const edgeOneX = positions[secondVertex] - positions[firstVertex]
+    const edgeOneY = positions[secondVertex + 1] - positions[firstVertex + 1]
+    const edgeOneZ = positions[secondVertex + 2] - positions[firstVertex + 2]
+    const edgeTwoX = positions[thirdVertex] - positions[firstVertex]
+    const edgeTwoY = positions[thirdVertex + 1] - positions[firstVertex + 1]
+    const edgeTwoZ = positions[thirdVertex + 2] - positions[firstVertex + 2]
+    const normalY = edgeOneZ * edgeTwoX - edgeOneX * edgeTwoZ
     total++
-    if (ny > 0) facingUp++
+    if (normalY > 0) facingUp++
   }
   identical('no triangle faces away from +y', total - facingUp, 0)
 }
@@ -251,21 +259,21 @@ section('height lines')
   )
   console.log(`        (traced in ${ms.toFixed(0)} ms)`)
 
-  const expected = [...hypsometricLevels].sort((a, b) => a - b)
+  const expected = [...hypsometricLevels].sort((left, right) => left - right)
   let mismatches = 0
-  for (let i = 0; i < expected.length; i++) {
-    const level = lines.levels[i]
-    const want = reference['terrain-2048'].counts[hypsometricLevels.indexOf(expected[i])]
-    if (level.level !== expected[i] || level.segments !== want) {
+  for (let index = 0; index < expected.length; index++) {
+    const level = lines.levels[index]
+    const want = reference['terrain-2048'].counts[hypsometricLevels.indexOf(expected[index])]
+    if (level.level !== expected[index] || level.segments !== want) {
       mismatches++
-      console.log(`        level ${expected[i]}: got ${level.segments}, expected ${want}`)
+      console.log(`        level ${expected[index]}: got ${level.segments}, expected ${want}`)
     }
   }
   identical('every level matches the reference, one at a time', mismatches, 0)
 
   let contiguous = lines.levels[0].offset === 0
-  for (let i = 1; i < lines.levels.length; i++) {
-    if (lines.levels[i].offset !== lines.levels[i - 1].offset + lines.levels[i - 1].segments) contiguous = false
+  for (let index = 1; index < lines.levels.length; index++) {
+    if (lines.levels[index].offset !== lines.levels[index - 1].offset + lines.levels[index - 1].segments) contiguous = false
   }
   check('the levels tile the buffer with no gaps', contiguous)
   identical('two vertices per segment', lines.positions.length, lines.segments * 2 * 3)
@@ -282,11 +290,11 @@ section('the lines sit on the height they claim')
   let worst = 0
   let worstAt = null
   let vertical = 0
-  for (let v = 0; v < flat.positions.length / 3; v += 617) {
-    const level = findLevel(flat, v)
-    const x = flat.positions[v * 3]
-    const y = flat.positions[v * 3 + 1]
-    const z = flat.positions[v * 3 + 2]
+  for (let vertex = 0; vertex < flat.positions.length / 3; vertex += 617) {
+    const level = findLevel(flat, vertex)
+    const x = flat.positions[vertex * 3]
+    const y = flat.positions[vertex * 3 + 1]
+    const z = flat.positions[vertex * 3 + 2]
 
     if (Math.abs(y - level * perMetre) > 1e-3) vertical++
     const height = sample(x / perDegree, -z / perDegree)
@@ -308,18 +316,18 @@ section('the shape does not change the lines')
   const round = buildContours(grid)
   const flat = buildContours(grid, { view: { surface: 'plane' } })
   identical('a sphere and a plane trace the same segments', round.segments, flat.segments)
-  identical('and agree level for level', round.levels.map((l) => l.segments).join(','), flat.levels.map((l) => l.segments).join(','))
+  identical('and agree level for level', round.levels.map((level) => level.segments).join(','), flat.levels.map((level) => level.segments).join(','))
 
   const radius = 6
   const relief = 30 / earthRadiusM
-  let off = 0
-  for (let v = 0; v < round.positions.length / 3; v += 1013) {
-    const level = findLevel(round, v)
-    const x = round.positions[v * 3], y = round.positions[v * 3 + 1], z = round.positions[v * 3 + 2]
-    const r = Math.hypot(x, y, z)
-    if (Math.abs(r - radius * (1 + level * relief)) > 1e-4) off++
+  let wrongRadius = 0
+  for (let vertex = 0; vertex < round.positions.length / 3; vertex += 1013) {
+    const level = findLevel(round, vertex)
+    const x = round.positions[vertex * 3], y = round.positions[vertex * 3 + 1], z = round.positions[vertex * 3 + 2]
+    const distance = Math.hypot(x, y, z)
+    if (Math.abs(distance - radius * (1 + level * relief)) > 1e-4) wrongRadius++
   }
-  identical('and every globe vertex sits at its own radius', off, 0)
+  identical('and every globe vertex sits at its own radius', wrongRadius, 0)
 }
 
 section('choosing the levels')
@@ -389,13 +397,13 @@ section('the 10800 grid, and why it is data rather than a mesh')
   }
 
   let rising = true
-  for (let i = 1; i < trend.length; i++) {
-    if (trend[i].at <= trend[i - 1].at) rising = false
+  for (let index = 1; index < trend.length; index++) {
+    if (trend[index].at <= trend[index - 1].at) rising = false
   }
   check(
     'every step finer samples Everest higher',
     rising,
-    trend.map((t) => `${t.id.replace('terrain-', '')}: ${t.at.toFixed(0)} m`).join('  '),
+    trend.map((entry) => `${entry.id.replace('terrain-', '')}: ${entry.at.toFixed(0)} m`).join('  '),
   )
   check(
     'and the 10800 peak is the one that should be there',
@@ -457,8 +465,8 @@ section('land cover: a second raster')
 
   const counts = new Uint32Array(256)
   let unknown = 0
-  for (let i = 0; i < cover.classes.length; i++) {
-    const id = cover.classes[i]
+  for (let index = 0; index < cover.classes.length; index++) {
+    const id = cover.classes[index]
     counts[id]++
     if (!known[id]) unknown++
   }
@@ -481,8 +489,8 @@ section('land cover: a second raster')
 section('the palette')
 {
   identical('seventeen IGBP classes', landCover.length, 17)
-  check('numbered 1 to 17', landCover.every((entry, i) => entry.id === i + 1))
-  check('every channel is 0..1', landCover.every((entry) => entry.rgb.every((v) => v >= 0 && v <= 1)))
+  check('numbered 1 to 17', landCover.every((entry, index) => entry.id === index + 1))
+  check('every channel is 0..1', landCover.every((entry) => entry.rgb.every((vertex) => vertex >= 0 && vertex <= 1)))
 
   const snow = [...landCoverColor(15)]
   check(
@@ -496,13 +504,13 @@ section('the palette')
   check('sand is brighter than a rainforest', sand[0] > forest[0] * 3,
     `${sand[0].toFixed(3)} against ${forest[0].toFixed(3)}`)
   check('and a rainforest is greener than it is red', forest[1] > forest[0] * 2,
-    forest.map((v) => v.toFixed(3)).join(' '))
+    forest.map((channel) => channel.toFixed(3)).join(' '))
 
   const unknownColour = [...landCoverColor(99)]
   const waterColour = [...landCoverColor(17)]
   check(
     'a code the table has never seen comes back as water, not black',
-    unknownColour.every((v, i) => v === waterColour[i]),
+    unknownColour.every((vertex, index) => vertex === waterColour[index]),
   )
 }
 
@@ -544,13 +552,13 @@ section('the planet, painted')
   const pacific = colourAt(0, -150)
 
   check('the Sahara is sand', sahara[0] > 0.4 && sahara[0] > sahara[2] * 1.5,
-    sahara.map((v) => v.toFixed(2)).join(' '))
+    sahara.map((channel) => channel.toFixed(2)).join(' '))
   check('the Amazon is dark green', amazon[1] > amazon[0] * 5 && amazon[1] < 0.1,
-    amazon.map((v) => v.toFixed(3)).join(' '))
+    amazon.map((channel) => channel.toFixed(3)).join(' '))
   check('Antarctica is white', Math.min(...antarctic) > 0.75,
-    antarctic.map((v) => v.toFixed(2)).join(' '))
+    antarctic.map((channel) => channel.toFixed(2)).join(' '))
   check('the open ocean is blue and dark', pacific[2] > pacific[0] && pacific[2] < 0.2,
-    pacific.map((v) => v.toFixed(3)).join(' '))
+    pacific.map((channel) => channel.toFixed(3)).join(' '))
 
   /* The whole reason the second raster exists, asserted. A hypsometric ramp puts
      the Sahara and the Amazon at 744 m and 54 m — both green, differing only in
@@ -559,10 +567,10 @@ section('the planet, painted')
   const rampAmazon = [...elevationColor(cell(-3.4, -62).metres)]
   check('the elevation ramp makes both of them green',
     rampSahara[1] > rampSahara[0] && rampAmazon[1] > rampAmazon[0],
-    `${rampSahara.map((v) => v.toFixed(2)).join(' ')} / ${rampAmazon.map((v) => v.toFixed(2)).join(' ')}`)
+    `${rampSahara.map((channel) => channel.toFixed(2)).join(' ')} / ${rampAmazon.map((channel) => channel.toFixed(2)).join(' ')}`)
   check('the land cover does not',
     sahara[0] > sahara[1] && amazon[1] > amazon[0],
-    `${sahara.map((v) => v.toFixed(2)).join(' ')} / ${amazon.map((v) => v.toFixed(2)).join(' ')}`)
+    `${sahara.map((channel) => channel.toFixed(2)).join(' ')} / ${amazon.map((channel) => channel.toFixed(2)).join(' ')}`)
 
   /* Registration, with no coastline to compare against: if the class grid were a
      row or a column out of step with the heights, deep ocean would come back as
@@ -596,8 +604,8 @@ section('one surface, another raster')
 
   const surface = buildSurface(small, { colourOf })
   let outOfRange = 0
-  for (let i = 0; i < surface.colors.length; i++) {
-    const value = surface.colors[i]
+  for (let index = 0; index < surface.colors.length; index++) {
+    const value = surface.colors[index]
     if (!(value >= 0 && value <= 1)) outOfRange++
   }
   identical('every vertex colour is a real colour', outOfRange, 0)
@@ -608,20 +616,20 @@ section('one surface, another raster')
   const column = Math.round(((10 + 180) / 360) * small.width) % small.width
   const sandy = [...colourOf(small.heights[row * small.width + column], row, column)]
   check('a 4096-wide class grid paints a 1024-wide surface', sandy[0] > 0.3,
-    sandy.map((v) => v.toFixed(2)).join(' '))
+    sandy.map((channel) => channel.toFixed(2)).join(' '))
 
   /* And the seam column: buildSurface writes one column past the last meridian,
      and it must sample column 0's ground rather than run off the end. */
   const seam = [...colourOf(small.heights[row * small.width], row, small.width)]
   const first = [...colourOf(small.heights[row * small.width], row, 0)]
-  check('the seam column is column zero', seam.every((v, i) => v === first[i]))
+  check('the seam column is column zero', seam.every((vertex, index) => vertex === first[index]))
 }
 
 /** Which level a vertex belongs to, found from the level offsets. */
 function findLevel(lines, vertex) {
   const segment = vertex / 2
-  for (let i = lines.levels.length - 1; i >= 0; i--) {
-    if (segment >= lines.levels[i].offset) return lines.levels[i].level
+  for (let index = lines.levels.length - 1; index >= 0; index--) {
+    if (segment >= lines.levels[index].offset) return lines.levels[index].level
   }
   return lines.levels[0].level
 }

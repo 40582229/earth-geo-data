@@ -81,36 +81,36 @@ const snowBandC = 9
  *  below. A band rather than a line because a hard snow line on a smooth 10 km
  *  grid looks like a contour, and snow does not stop at an altitude. */
 function snowAmount(latitude: number, metres: number): number {
-  const t = (snowWarmEdgeC - annualMeanCelsius(latitude, metres)) / snowBandC
-  return t < 0 ? 0 : t > 1 ? 1 : t
+  const snowFraction = (snowWarmEdgeC - annualMeanCelsius(latitude, metres)) / snowBandC
+  return snowFraction < 0 ? 0 : snowFraction > 1 ? 1 : snowFraction
 }
 
 // One triple for the blend. `landCoverColor` already reuses its own, so the two
 // are copied rather than aliased; nothing here allocates per vertex.
 const mixed: [number, number, number] = [0, 0, 0]
 
-function paint(metres: number, classId: number, latitude: number, o: Resolved): Color3 {
+function paint(metres: number, classId: number, latitude: number, resolved: Resolved): Color3 {
   // Ice first, and before the ocean test: an ice shelf is below sea level and
   // still white, and so is the sea ice over the Arctic.
-  if (o.ice && classId === snowClass) return o.land(snowClass)
+  if (resolved.ice && classId === snowClass) return resolved.land(snowClass)
 
   // Below sea level the elevation ramp does the work — the shelf, the trenches,
   // the abyssal plains. It is the only thing here that knows how deep it is.
-  if (metres <= 0) return o.ocean(metres)
+  if (metres <= 0) return resolved.ocean(metres)
 
   // Land above the water that the class grid still calls water: a lake, a river
   // wide enough for 500 m pixels. Painted as water, at the palette's one blue.
-  if (waterClasses.includes(classId)) return o.land(17)
+  if (waterClasses.includes(classId)) return resolved.land(17)
 
-  const base = o.land(classId)
+  const base = resolved.land(classId)
   mixed[0] = base[0]
   mixed[1] = base[1]
   mixed[2] = base[2]
 
-  if (o.snow) {
+  if (resolved.snow) {
     const white = snowAmount(latitude, metres)
     if (white > 0) {
-      const ice = o.land(snowClass)
+      const ice = resolved.land(snowClass)
       mixed[0] += (ice[0] - mixed[0]) * white
       mixed[1] += (ice[1] - mixed[1]) * white
       mixed[2] += (ice[2] - mixed[2]) * white
@@ -131,7 +131,7 @@ export function earthColours(
   cover: LandCoverGrid,
   options: EarthColourOptions = {},
 ): SurfaceColour {
-  const o = resolve(options)
+  const resolved = resolve(options)
   const layout = gridLayout(grid)
   const width = grid.width
   const height = grid.height
@@ -149,6 +149,6 @@ export function earthColours(
     const coverRow = Math.min(coverHeight - 1, (row * coverHeight / height) | 0)
     const latitude = height > 1 ? 90 - (row / (height - 1)) * latitudeSpan : 90
 
-    return paint(metres, classAt(cover, coverColumn, coverRow), latitude, o)
+    return paint(metres, classAt(cover, coverColumn, coverRow), latitude, resolved)
   }
 }

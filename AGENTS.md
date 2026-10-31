@@ -5,12 +5,31 @@ suggestions; code that ignores them will be sent back.
 
 ## Naming
 
+**Full names, spelled out.** A name is read far more often than it is typed, so
+take the longer one whenever it says more. That includes loop counters and
+callbacks: there is no such thing as "it is only a temporary".
+
+| not this | this |
+|---|---|
+| `i`, `j` | `index`, or `levelIndex` when there is more than one |
+| `t` | `fraction`, `snowFraction` |
+| `a`, `b` | `lowerAnchor`, `upperAnchor` |
+| `at` | `offset`, `writeOffset` |
+| `o`, `r`, `y` | `resolved`, `radiusAtHeight`, `heightOffset` |
+| `h00`, `h01` | `topLeftHeight`, `topRightHeight` |
+| `c0`, `r1` | `columnBefore`, `rowAfter` |
+| `lut` | `lookupTable` |
+| `spec` | `fieldHeader` |
+| `full` | `resolvedView` |
+
+If a name needs a comment to say what it is, the name is wrong.
+
 **camelCase for every identifier that is not a type.** Variables, function
 parameters, properties, and module constants — including exported ones:
 
 ```ts
 export const earthRadiusM = 6371000
-const elevationLutSize = 4096
+const elevationTableSize = 4096
 const byId = new Map(...)
 ```
 
@@ -24,8 +43,9 @@ Two things keep their own casing because they belong to someone else: environmen
 variables (`EARTHGEO_SOURCE`) and format identifiers in strings
 (`'earthGeoData/1'`).
 
-No abbreviations except the ones the domain already speaks: `lon`, `lat`, `xyz`,
-`rgb`, `lut`, `m` (metres).
+What is left short is what the domain already speaks: the coordinates `x`, `y`,
+`z`, `lon`, `lat`, and the colour triple `rgb`. Everything else is written out —
+`earthRadiusM`, `snowWarmEdgeC`, `columnFraction`, `topRightHeight`.
 
 ## Comments
 

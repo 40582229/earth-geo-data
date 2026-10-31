@@ -454,7 +454,7 @@ export const elevationRamp: { metres: number; rgb: Color3 }[] = [
 ]
 
 /* The ramp, baked into a lookup table before the globe is built. */
-const elevationLutSize = 4096
+const elevationTableSize = 4096
 
 // where the ramp crosses the waterline. findIndex stops at the first anchor at
 // or above 0 m, so the one before it is the last water anchor (-4 m).
@@ -463,47 +463,46 @@ const lastWaterMetres = elevationRamp[firstLandAnchor - 1].metres
 const firstLandMetres = elevationRamp[firstLandAnchor].metres
 const lowestMetres = elevationRamp[0].metres
 const highestMetres = elevationRamp[elevationRamp.length - 1].metres
-const waterLut = bakeElevationLut(lowestMetres, lastWaterMetres)
-const landLut = bakeElevationLut(firstLandMetres, highestMetres)
-/* The ramp, baked into a lookup table before the globe is built. */
+const waterColourTable = bakeElevationTable(lowestMetres, lastWaterMetres)
+const landColourTable = bakeElevationTable(firstLandMetres, highestMetres)
 
 export function srgbToLinear(value: number): number {
   return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
 }
 
-function bakeElevationLut(from: number, to: number): Float32Array {
-  const table = new Float32Array(elevationLutSize * 3)
-  const step = (to - from) / (elevationLutSize - 1)
-  for (let i = 0; i < elevationLutSize; i++) {
-    const [red, green, blue] = sampleRamp(from + i * step)
-    table[i * 3] = srgbToLinear(red)
-    table[i * 3 + 1] = srgbToLinear(green)
-    table[i * 3 + 2] = srgbToLinear(blue)
+function bakeElevationTable(fromMetres: number, toMetres: number): Float32Array {
+  const table = new Float32Array(elevationTableSize * 3)
+  const step = (toMetres - fromMetres) / (elevationTableSize - 1)
+  for (let index = 0; index < elevationTableSize; index++) {
+    const [red, green, blue] = sampleRamp(fromMetres + index * step)
+    table[index * 3] = srgbToLinear(red)
+    table[index * 3 + 1] = srgbToLinear(green)
+    table[index * 3 + 2] = srgbToLinear(blue)
   }
   return table
 }
 
 /** Walk the anchors: what the ramp literally says at one height. */
 export function sampleRamp(metres: number): [number, number, number] {
-  let low = elevationRamp[0]
-  let high = elevationRamp[elevationRamp.length - 1]
+  let lowerAnchor = elevationRamp[0]
+  let upperAnchor = elevationRamp[elevationRamp.length - 1]
 
-  for (let i = 1; i < elevationRamp.length; i++) {
-    if (metres <= elevationRamp[i].metres) {
-      low = elevationRamp[i - 1]
-      high = elevationRamp[i]
+  for (let index = 1; index < elevationRamp.length; index++) {
+    if (metres <= elevationRamp[index].metres) {
+      lowerAnchor = elevationRamp[index - 1]
+      upperAnchor = elevationRamp[index]
       break
     }
   }
 
-  const span = high.metres - low.metres
-  const t = span === 0 ? 0 : (metres - low.metres) / span
-  const clamped = t < 0 ? 0 : t > 1 ? 1 : t
+  const span = upperAnchor.metres - lowerAnchor.metres
+  const fraction = span === 0 ? 0 : (metres - lowerAnchor.metres) / span
+  const clamped = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction
 
   return [
-    low.rgb[0] + (high.rgb[0] - low.rgb[0]) * clamped,
-    low.rgb[1] + (high.rgb[1] - low.rgb[1]) * clamped,
-    low.rgb[2] + (high.rgb[2] - low.rgb[2]) * clamped,
+    lowerAnchor.rgb[0] + (upperAnchor.rgb[0] - lowerAnchor.rgb[0]) * clamped,
+    lowerAnchor.rgb[1] + (upperAnchor.rgb[1] - lowerAnchor.rgb[1]) * clamped,
+    lowerAnchor.rgb[2] + (upperAnchor.rgb[2] - lowerAnchor.rgb[2]) * clamped,
   ]
 }
 
@@ -513,23 +512,26 @@ const scratchColor: [number, number, number] = [0, 0, 0]
 /* The colour for a height, out of the baked table. */
 export function elevationColor(metres: number): Color3 {
   const underwater = metres < 0
-  const table = underwater ? waterLut : landLut
-  const from = underwater ? lowestMetres : firstLandMetres
-  const to = underwater ? lastWaterMetres : highestMetres
+  const table = underwater ? waterColourTable : landColourTable
+  const rangeStart = underwater ? lowestMetres : firstLandMetres
+  const rangeEnd = underwater ? lastWaterMetres : highestMetres
 
   // anything below -4 m is water and anything from 0 m up is land, so the
   // clamp is doing real work for the last few metres on either side
-  const exact = ((metres - from) / (to - from)) * (elevationLutSize - 1)
-  const position = exact < 0 ? 0 : exact > elevationLutSize - 1 ? elevationLutSize - 1 : exact
-  const low = Math.floor(position)
-  const high = low < elevationLutSize - 1 ? low + 1 : low
-  const t = position - low
-  const a = low * 3
-  const b = high * 3
+  const exactPosition = ((metres - rangeStart) / (rangeEnd - rangeStart)) * (elevationTableSize - 1)
+  const position =
+    exactPosition < 0 ? 0
+      : exactPosition > elevationTableSize - 1 ? elevationTableSize - 1
+        : exactPosition
+  const lowerIndex = Math.floor(position)
+  const upperIndex = lowerIndex < elevationTableSize - 1 ? lowerIndex + 1 : lowerIndex
+  const fraction = position - lowerIndex
+  const lowerOffset = lowerIndex * 3
+  const upperOffset = upperIndex * 3
 
-  scratchColor[0] = table[a] + (table[b] - table[a]) * t
-  scratchColor[1] = table[a + 1] + (table[b + 1] - table[a + 1]) * t
-  scratchColor[2] = table[a + 2] + (table[b + 2] - table[a + 2]) * t
+  scratchColor[0] = table[lowerOffset] + (table[upperOffset] - table[lowerOffset]) * fraction
+  scratchColor[1] = table[lowerOffset + 1] + (table[upperOffset + 1] - table[lowerOffset + 1]) * fraction
+  scratchColor[2] = table[lowerOffset + 2] + (table[upperOffset + 2] - table[lowerOffset + 2]) * fraction
 
   return scratchColor
 }

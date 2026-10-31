@@ -37,8 +37,8 @@ export type ContourInfo = {
 export type ContourLines = {
   kind: 'contours'
   /** xyz, two vertices per segment, grouped by level in ascending order. To draw
-   *  one level, start at `levels[i].offset * 6` floats and take
-   *  `levels[i].segments * 6`. */
+   *  one level, start at `levels[levelIndex].offset * 6` floats and take
+   *  `levels[levelIndex].segments * 6`. */
   positions: Float32Array
   levels: ContourLevel[]
   segments: number
@@ -85,16 +85,16 @@ export function buildContours(
   const buffers: Float32Array[] = []
   const capacities = new Int32Array(count)
   const cursors = new Int32Array(count)
-  for (let i = 0; i < count; i++) {
+  for (let levelIndex = 0; levelIndex < count; levelIndex++) {
     buffers.push(new Float32Array(initialVertices * 3))
-    capacities[i] = initialVertices
+    capacities[levelIndex] = initialVertices
   }
 
-  const grow = (i: number): void => {
-    const next = new Float32Array(capacities[i] * 6)
-    next.set(buffers[i]!)
-    buffers[i] = next
-    capacities[i] *= 2
+  const grow = (levelIndex: number): void => {
+    const grown = new Float32Array(capacities[levelIndex] * 6)
+    grown.set(buffers[levelIndex]!)
+    buffers[levelIndex] = grown
+    capacities[levelIndex] *= 2
   }
 
   /* The four crossing points of the cell being looked at, in grid coordinates:
@@ -111,114 +111,114 @@ export function buildContours(
     const bottom = top + width
 
     for (let column = 0; column < width - 1; column++) {
-      const h00 = heights[top + column]!
-      const h01 = heights[top + column + 1]!
-      const h10 = heights[bottom + column]!
-      const h11 = heights[bottom + column + 1]!
+      const topLeftHeight = heights[top + column]!
+      const topRightHeight = heights[top + column + 1]!
+      const bottomLeftHeight = heights[bottom + column]!
+      const bottomRightHeight = heights[bottom + column + 1]!
 
-      const low = Math.min(h00, h01, h10, h11)
-      const high = Math.max(h00, h01, h10, h11)
+      const cellLowest = Math.min(topLeftHeight, topRightHeight, bottomLeftHeight, bottomRightHeight)
+      const cellHighest = Math.max(topLeftHeight, topRightHeight, bottomLeftHeight, bottomRightHeight)
 
-      if (high < firstLevel || low > lastLevel) continue
+      if (cellHighest < firstLevel || cellLowest > lastLevel) continue
 
-      for (let i = lowerBound(levels, low); i < count; i++) {
-        const level = levels[i]!
-        if (level > high) break
+      for (let levelIndex = lowerBound(levels, cellLowest); levelIndex < count; levelIndex++) {
+        const level = levels[levelIndex]!
+        if (level > cellHighest) break
 
-        const tt = fraction(h00, h01, level)
-        const tr = fraction(h01, h11, level)
-        const tb = fraction(h10, h11, level)
-        const tl = fraction(h00, h10, level)
+        const topCrossing = fraction(topLeftHeight, topRightHeight, level)
+        const rightCrossing = fraction(topRightHeight, bottomRightHeight, level)
+        const bottomCrossing = fraction(bottomLeftHeight, bottomRightHeight, level)
+        const leftCrossing = fraction(topLeftHeight, bottomLeftHeight, level)
 
-        edgeX[0] = column + tt; edgeY[0] = row
-        edgeX[1] = column + 1;  edgeY[1] = row + tr
-        edgeX[2] = column + tb; edgeY[2] = row + 1
-        edgeX[3] = column;      edgeY[3] = row + tl
+        edgeX[0] = column + topCrossing; edgeY[0] = row
+        edgeX[1] = column + 1;           edgeY[1] = row + rightCrossing
+        edgeX[2] = column + bottomCrossing; edgeY[2] = row + 1
+        edgeX[3] = column;               edgeY[3] = row + leftCrossing
 
         let code = 0
-        if (h00 >= level) code |= 1
-        if (h01 >= level) code |= 2
-        if (h11 >= level) code |= 4
-        if (h10 >= level) code |= 8
+        if (topLeftHeight >= level) code |= 1
+        if (topRightHeight >= level) code |= 2
+        if (bottomRightHeight >= level) code |= 4
+        if (bottomLeftHeight >= level) code |= 8
         if (code === 0 || code === 15) continue
 
         /* The sixteen cases, as edge pairs. Two of them are saddles and carry a
            second segment. Written as a table lookup would be shorter, but this
            runs eleven million times per level list and the switch compiles to a
            jump table. */
-        let a: number
-        let b: number
-        let a2 = -1
-        let b2 = 0
+        let fromEdge: number
+        let toEdge: number
+        let secondFromEdge = -1
+        let secondToEdge = 0
         switch (code) {
-          case 1: a = 3; b = 0; break
-          case 2: a = 0; b = 1; break
-          case 3: a = 3; b = 1; break
-          case 4: a = 1; b = 2; break
-          case 5: a = 3; b = 0; a2 = 1; b2 = 2; break
-          case 6: a = 0; b = 2; break
-          case 7: a = 3; b = 2; break
-          case 8: a = 2; b = 3; break
-          case 9: a = 2; b = 0; break
-          case 10: a = 0; b = 1; a2 = 2; b2 = 3; break
-          case 11: a = 1; b = 2; break
-          case 12: a = 1; b = 3; break
-          case 13: a = 1; b = 0; break
-          case 14: a = 0; b = 3; break
-          default: a = 0; b = 0; break
+          case 1: fromEdge = 3; toEdge = 0; break
+          case 2: fromEdge = 0; toEdge = 1; break
+          case 3: fromEdge = 3; toEdge = 1; break
+          case 4: fromEdge = 1; toEdge = 2; break
+          case 5: fromEdge = 3; toEdge = 0; secondFromEdge = 1; secondToEdge = 2; break
+          case 6: fromEdge = 0; toEdge = 2; break
+          case 7: fromEdge = 3; toEdge = 2; break
+          case 8: fromEdge = 2; toEdge = 3; break
+          case 9: fromEdge = 2; toEdge = 0; break
+          case 10: fromEdge = 0; toEdge = 1; secondFromEdge = 2; secondToEdge = 3; break
+          case 11: fromEdge = 1; toEdge = 2; break
+          case 12: fromEdge = 1; toEdge = 3; break
+          case 13: fromEdge = 1; toEdge = 0; break
+          case 14: fromEdge = 0; toEdge = 3; break
+          default: fromEdge = 0; toEdge = 0; break
         }
 
         // room for the widest case before writing any of it
-        if (cursors[i]! + 4 > capacities[i]!) grow(i)
-        const out = buffers[i]!
-        let at = cursors[i]! * 3
+        if (cursors[levelIndex]! + 4 > capacities[levelIndex]!) grow(levelIndex)
+        const buffer = buffers[levelIndex]!
+        let writeOffset = cursors[levelIndex]! * 3
 
         project.write(
-          out, at,
-          columnZeroLon + (edgeX[a]! / width) * longitudeSpan,
-          90 - (edgeY[a]! / latitudeRows) * latitudeSpan,
+          buffer, writeOffset,
+          columnZeroLon + (edgeX[fromEdge]! / width) * longitudeSpan,
+          90 - (edgeY[fromEdge]! / latitudeRows) * latitudeSpan,
           level,
         )
         project.write(
-          out, at + 3,
-          columnZeroLon + (edgeX[b]! / width) * longitudeSpan,
-          90 - (edgeY[b]! / latitudeRows) * latitudeSpan,
+          buffer, writeOffset + 3,
+          columnZeroLon + (edgeX[toEdge]! / width) * longitudeSpan,
+          90 - (edgeY[toEdge]! / latitudeRows) * latitudeSpan,
           level,
         )
-        at += 6
+        writeOffset += 6
 
-        if (a2 >= 0) {
+        if (secondFromEdge >= 0) {
           project.write(
-            out, at,
-            columnZeroLon + (edgeX[a2]! / width) * longitudeSpan,
-            90 - (edgeY[a2]! / latitudeRows) * latitudeSpan,
+            buffer, writeOffset,
+            columnZeroLon + (edgeX[secondFromEdge]! / width) * longitudeSpan,
+            90 - (edgeY[secondFromEdge]! / latitudeRows) * latitudeSpan,
             level,
           )
           project.write(
-            out, at + 3,
-            columnZeroLon + (edgeX[b2]! / width) * longitudeSpan,
-            90 - (edgeY[b2]! / latitudeRows) * latitudeSpan,
+            buffer, writeOffset + 3,
+            columnZeroLon + (edgeX[secondToEdge]! / width) * longitudeSpan,
+            90 - (edgeY[secondToEdge]! / latitudeRows) * latitudeSpan,
             level,
           )
-          at += 6
+          writeOffset += 6
         }
 
-        cursors[i] = at / 3
+        cursors[levelIndex] = writeOffset / 3
       }
     }
   }
 
   let vertices = 0
-  for (let i = 0; i < count; i++) vertices += cursors[i]!
+  for (let levelIndex = 0; levelIndex < count; levelIndex++) vertices += cursors[levelIndex]!
   const positions = new Float32Array(vertices * 3)
 
   const outLevels: ContourLevel[] = []
   let write = 0
-  for (let i = 0; i < count; i++) {
-    const levelVertices = cursors[i]!
-    positions.set(buffers[i]!.subarray(0, levelVertices * 3), write * 3)
+  for (let levelIndex = 0; levelIndex < count; levelIndex++) {
+    const levelVertices = cursors[levelIndex]!
+    positions.set(buffers[levelIndex]!.subarray(0, levelVertices * 3), write * 3)
     outLevels.push({
-      level: levels[i]!,
+      level: levels[levelIndex]!,
       offset: write / 2,
       segments: levelVertices / 2,
     })
@@ -246,22 +246,22 @@ export function buildContours(
 
 /** How far along a→b the level crosses, clamped to the edge. A flat edge has no
  *  crossing, so it is given the midpoint rather than a division by zero. */
-function fraction(a: number, b: number, level: number): number {
-  const span = b - a
-  const along = span !== 0 ? (level - a) / span : 0.5
+function fraction(fromValue: number, toValue: number, level: number): number {
+  const span = toValue - fromValue
+  const along = span !== 0 ? (level - fromValue) / span : 0.5
   return along < 0 ? 0 : along > 1 ? 1 : along
 }
 
 /** First index whose level is >= value. Levels arrive sorted. */
 function lowerBound(levels: readonly number[], value: number): number {
-  let low = 0
-  let high = levels.length
-  while (low < high) {
-    const mid = (low + high) >> 1
-    if (levels[mid]! < value) low = mid + 1
-    else high = mid
+  let lowerIndex = 0
+  let upperIndex = levels.length
+  while (lowerIndex < upperIndex) {
+    const middleIndex = (lowerIndex + upperIndex) >> 1
+    if (levels[middleIndex]! < value) lowerIndex = middleIndex + 1
+    else upperIndex = middleIndex
   }
-  return low
+  return lowerIndex
 }
 
 function resolveLevels(grid: ElevationGrid, options: ContourOptions): number[] {
@@ -284,7 +284,7 @@ function resolveLevels(grid: ElevationGrid, options: ContourOptions): number[] {
     }
   }
 
-  levels.sort((a, b) => a - b)
+  levels.sort((left, right) => left - right)
   const unique: number[] = []
   for (const level of levels) {
     if (!unique.length || unique[unique.length - 1] !== level) unique.push(level)
@@ -298,17 +298,17 @@ function levelsEvery(grid: ElevationGrid, every: number): number[] {
   }
   const { min, max } = grid.data.range ?? scanRange(grid.heights)
   const levels: number[] = []
-  const first = Math.ceil(min / every)
-  const last = Math.floor(max / every)
-  for (let step = first; step <= last; step++) levels.push(step * every)
+  const firstStep = Math.ceil(min / every)
+  const lastStep = Math.floor(max / every)
+  for (let step = firstStep; step <= lastStep; step++) levels.push(step * every)
   return levels
 }
 
 function scanRange(values: Float32Array): { min: number; max: number } {
   let min = Infinity
   let max = -Infinity
-  for (let i = 0; i < values.length; i++) {
-    const value = values[i]!
+  for (let index = 0; index < values.length; index++) {
+    const value = values[index]!
     if (value < min) min = value
     if (value > max) max = value
   }

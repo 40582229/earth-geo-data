@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const pkg = join(here, '..')
-const out = join(pkg, 'data')
+const dataDirectory = join(pkg, 'data')
 
 /* Where the source grids live is a property of the machine, not of the repo:
    the data is not committed. Take it from the argument, then the environment,
@@ -45,12 +45,12 @@ if (!elevation.length) {
   process.exit(1)
 }
 
-await mkdir(out, { recursive: true })
+await mkdir(dataDirectory, { recursive: true })
 
 for (const entry of elevation) {
-  const to = join(out, entry.path)
-  await mkdir(dirname(to), { recursive: true })
-  await copyFile(join(source, entry.path), to)
+  const destination = join(dataDirectory, entry.path)
+  await mkdir(dirname(destination), { recursive: true })
+  await copyFile(join(source, entry.path), destination)
 }
 
 /** Every dataset file in data/, relative to it and sorted. index.json is not one. */
@@ -65,11 +65,11 @@ async function datasetsIn(dir, prefix = '') {
 }
 
 /* An entry for a file the source manifest did not describe. Everything in it is
-   read out of the envelope the file carries — the same fields the source uses,
+   read straight out of the envelope the file carries, the same fields the source uses,
    so both kinds of entry sit in one list without a special case. */
 function describe(path, envelope, bytes, sha256) {
   const grid = envelope.grid ?? {}
-  const from = envelope.source ?? {}
+  const origin = envelope.source ?? {}
 
   return {
     id: envelope.id,
@@ -82,19 +82,19 @@ function describe(path, envelope, bytes, sha256) {
     bytes,
     sourceBytes: envelope.byteLength,
     sha256,
-    licence: from.licence,
-    attribution: from.attribution,
-    retrieved: from.retrieved,
+    licence: origin.licence,
+    attribution: origin.attribution,
+    retrieved: origin.retrieved,
     stats: envelope.stats,
   }
 }
 
 const fromSource = new Map(elevation.map((entry) => [entry.path, entry]))
-const onDisk = await datasetsIn(out)
+const onDisk = await datasetsIn(dataDirectory)
 const datasets = []
 
 for (const path of onDisk) {
-  const body = await readFile(join(out, path))
+  const body = await readFile(join(dataDirectory, path))
   const sha256 = createHash('sha256').update(body).digest('hex')
   const entry = fromSource.get(path)
 
@@ -145,9 +145,9 @@ const manifest = {
   datasets,
 }
 
-await writeFile(join(out, 'index.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+await writeFile(join(dataDirectory, 'index.json'), `${JSON.stringify(manifest, null, 2)}\n`)
 
 console.log(
   `\n${datasets.length} datasets, ${(bytes / 1e6).toFixed(1)} MB of JSON, ` +
-  `${(payload / 1e6).toFixed(1)} MB of payload -> ${out}`,
+  `${(payload / 1e6).toFixed(1)} MB of payload -> ${dataDirectory}`,
 )

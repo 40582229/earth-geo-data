@@ -49,39 +49,39 @@ export type Projector = {
   /** Write the xyz of one lon/lat into `out` at `at`, `at+1`, `at+2`, and hand
    *  back the radius it used — so a caller can measure the band it produced
    *  without a second pass over the vertices with a hypot() each. */
-  write(out: Float32Array, at: number, longitude: number, latitude: number, metres?: number): number
+  write(target: Float32Array, offset: number, longitude: number, latitude: number, metres?: number): number
   spin(longitude: number): number
 }
 
 export function projector(view: Partial<GlobeView> = {}): Projector {
-  const full: GlobeView = { ...defaultView, ...view }
-  const relief = full.heightExaggeration / earthRadiusM
-  const offset = full.surface === 'sphere' ? full.longitudeOffset * radians : 0
+  const resolvedView: GlobeView = { ...defaultView, ...view }
+  const relief = resolvedView.heightExaggeration / earthRadiusM
+  const spinRadians = resolvedView.surface === 'sphere' ? resolvedView.longitudeOffset * radians : 0
 
-  if (full.surface === 'plane') {
-    const perDegree = full.radius / 180
+  if (resolvedView.surface === 'plane') {
+    const perDegree = resolvedView.radius / 180
     /* The same metres-to-units factor the sphere uses, deliberately: switching a
        layer between sphere and plane is then a change of shape and not a change
        of scale, and the Andes are the same height in both. */
-    const perMetre = full.radius * relief
+    const perMetre = resolvedView.radius * relief
 
     return {
-      view: full,
+      view: resolvedView,
 
       radius(metres: number): number {
         return metres * perMetre
       },
 
-      write(out, at, longitude, latitude, metres = 0): number {
-        const y = metres * perMetre
-        out[at] = longitude * perDegree
-        out[at + 1] = y
+      write(target, offset, longitude, latitude, metres = 0): number {
+        const heightOffset = metres * perMetre
+        target[offset] = longitude * perDegree
+        target[offset + 1] = heightOffset
         // north at -z, so a camera above the map with -z up sees north at the
         // top and east to the right — the same way round as the globe, which is
         // why an overlay needs no special case. It also leaves the triangles
         // facing +y with the index order globe.ts already writes.
-        out[at + 2] = -latitude * perDegree
-        return y
+        target[offset + 2] = -latitude * perDegree
+        return heightOffset
       },
 
       spin(longitude: number): number {
@@ -91,29 +91,29 @@ export function projector(view: Partial<GlobeView> = {}): Projector {
   }
 
   return {
-    view: full,
+    view: resolvedView,
 
     radius(metres: number): number {
-      return full.radius * (1 + metres * relief)
+      return resolvedView.radius * (1 + metres * relief)
     },
 
-    write(out, at, longitude, latitude, metres = 0): number {
-      const r = full.radius * (1 + metres * relief)
-      const phi = latitude * radians
-      const lambda = longitude * radians + offset
-      const cosPhi = Math.cos(phi)
-      out[at] = r * cosPhi * Math.cos(lambda)
-      out[at + 1] = r * Math.sin(phi)
+    write(target, offset, longitude, latitude, metres = 0): number {
+      const radiusAtHeight = resolvedView.radius * (1 + metres * relief)
+      const latitudeRadians = latitude * radians
+      const longitudeRadians = longitude * radians + spinRadians
+      const cosLatitude = Math.cos(latitudeRadians)
+      target[offset] = radiusAtHeight * cosLatitude * Math.cos(longitudeRadians)
+      target[offset + 1] = radiusAtHeight * Math.sin(latitudeRadians)
       // The minus sign matters. With +sin here, east runs anticlockwise and the
       // whole planet comes out MIRRORED — east on the left, like a map held up
       // to a window. Negating z flips the sphere round to the normal handedness,
       // with longitude increasing to the right.
-      out[at + 2] = -r * cosPhi * Math.sin(lambda)
-      return r
+      target[offset + 2] = -radiusAtHeight * cosLatitude * Math.sin(longitudeRadians)
+      return radiusAtHeight
     },
 
     spin(longitude: number): number {
-      return longitude + full.longitudeOffset
+      return longitude + resolvedView.longitudeOffset
     },
   }
 }
@@ -147,16 +147,18 @@ export function samplerFromGrid(data: EarthGeoData): ElevationSampler {
     if (column >= width) column = 0 // a longitude of exactly 180 after rounding
     row = row < 0 ? 0 : row > height - 1 ? height - 1 : row
 
-    const c0 = Math.floor(column)
-    const r0 = Math.floor(row)
-    const c1 = c0 + 1 >= width ? 0 : c0 + 1 // wrap east to west, it is the same meridian
-    const r1 = r0 + 1 >= height ? height - 1 : r0 + 1
-    const tx = column - c0
-    const ty = row - r0
+    const columnBefore = Math.floor(column)
+    const rowBefore = Math.floor(row)
+    const columnAfter = columnBefore + 1 >= width ? 0 : columnBefore + 1
+    const rowAfter = rowBefore + 1 >= height ? height - 1 : rowBefore + 1
+    const columnFraction = column - columnBefore
+    const rowFraction = row - rowBefore
 
-    const top = data.at(c0, r0) * (1 - tx) + data.at(c1, r0) * tx
-    const bottom = data.at(c0, r1) * (1 - tx) + data.at(c1, r1) * tx
-    return top * (1 - ty) + bottom * ty
+    const top = data.at(columnBefore, rowBefore) * (1 - columnFraction)
+      + data.at(columnAfter, rowBefore) * columnFraction
+    const bottom = data.at(columnBefore, rowAfter) * (1 - columnFraction)
+      + data.at(columnAfter, rowAfter) * columnFraction
+    return top * (1 - rowFraction) + bottom * rowFraction
   }
 }
 

@@ -139,21 +139,21 @@ export function buildSurface(
   }
 
   const indices = new Uint32Array((columns - 1) * (height - 1) * 6)
-  let face = 0
+  let corner = 0
   for (let row = 0; row < height - 1; row++) {
     for (let column = 0; column < columns - 1; column++) {
-      const a = row * columns + column
-      const b = a + 1
-      const c = a + columns
-      const d = c + 1
+      const topLeft = row * columns + column
+      const topRight = topLeft + 1
+      const bottomLeft = topLeft + columns
+      const bottomRight = bottomLeft + 1
 
-      indices[face++] = a
-      indices[face++] = c
-      indices[face++] = b
+      indices[corner++] = topLeft
+      indices[corner++] = bottomLeft
+      indices[corner++] = topRight
 
-      indices[face++] = b
-      indices[face++] = c
-      indices[face++] = d
+      indices[corner++] = topRight
+      indices[corner++] = bottomLeft
+      indices[corner++] = bottomRight
     }
   }
 

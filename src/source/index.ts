@@ -74,7 +74,7 @@ export async function datasetEntry(
   if (!entry) {
     throw new Error(
       `earthGeoData: no dataset "${source}". The manifest lists ${index.datasets.length}: ` +
-      `${index.datasets.map((d) => d.id).join(', ')}`,
+      `${index.datasets.map((dataset) => dataset.id).join(', ')}`,
     )
   }
   return entry
@@ -115,7 +115,7 @@ export async function listDatasets(options: SourceOptions = {}): Promise<EarthGe
 async function verify(path: string, text: string, expected: string): Promise<void> {
   const bytes = new TextEncoder().encode(text)
   const digest = await crypto.subtle.digest('SHA-256', bytes)
-  const actual = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+  const actual = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
   if (actual !== expected) {
     throw new Error(`earthGeoData: ${path} has sha256 ${actual}, the manifest says ${expected}`)
   }

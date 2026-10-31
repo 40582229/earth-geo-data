@@ -122,7 +122,7 @@ export function base64ToBytes(base64: string, byteLength: number): Uint8Array {
     )
   }
   const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index)
   return bytes
 }
 
@@ -206,10 +206,12 @@ export class EarthGeoData {
       if (grid.nodata !== null && grid.type !== 'float32' && grid.type !== 'float64') {
         const bits = type.size * 8
         const unsigned = grid.type.startsWith('u')
-        const low = unsigned ? 0 : -Math.pow(2, bits - 1)
-        const high = unsigned ? Math.pow(2, bits) - 1 : Math.pow(2, bits - 1) - 1
-        if (!Number.isInteger(grid.nodata) || grid.nodata < low || grid.nodata > high) {
-          fail(`nodata ${grid.nodata} cannot be stored in ${grid.type} (${low}..${high})`)
+        const lowestValue = unsigned ? 0 : -Math.pow(2, bits - 1)
+        const highestValue = unsigned ? Math.pow(2, bits) - 1 : Math.pow(2, bits - 1) - 1
+        if (!Number.isInteger(grid.nodata)
+          || grid.nodata < lowestValue || grid.nodata > highestValue) {
+          fail(`nodata ${grid.nodata} cannot be stored in ${grid.type} `
+            + `(${lowestValue}..${highestValue})`)
         }
       }
       return
@@ -306,7 +308,7 @@ export class EarthGeoData {
   }
 
   private checkTiling(runs: readonly { offset: number; count: number }[], what: string): void {
-    const sorted = [...runs].sort((a, b) => a.offset - b.offset)
+    const sorted = [...runs].sort((left, right) => left.offset - right.offset)
     let cursor = 0
     for (const run of sorted) {
       if (run.offset !== cursor) {
@@ -349,18 +351,20 @@ export class EarthGeoData {
     const header = this.headers.get(name)
     if (!header) this.field(name) // throws with the field list
 
-    const spec = header as FieldHeader
+    const fieldHeader = header as FieldHeader
     const raw = this.field(name)
-    if (spec.type === 'float32' && spec.scale === 1 && spec.offset === 0) {
-      const direct = raw as Float32Array
-      this.scaledViews.set(name, direct)
-      return direct
+    if (fieldHeader.type === 'float32' && fieldHeader.scale === 1 && fieldHeader.offset === 0) {
+      const alreadyScaled = raw as Float32Array
+      this.scaledViews.set(name, alreadyScaled)
+      return alreadyScaled
     }
 
-    const out = new Float32Array(raw.length)
-    for (let i = 0; i < raw.length; i++) out[i] = raw[i] * spec.scale + spec.offset
-    this.scaledViews.set(name, out)
-    return out
+    const scaled = new Float32Array(raw.length)
+    for (let index = 0; index < raw.length; index++) {
+      scaled[index] = raw[index] * fieldHeader.scale + fieldHeader.offset
+    }
+    this.scaledViews.set(name, scaled)
+    return scaled
   }
 
   get fieldNames(): string[] {
@@ -429,10 +433,12 @@ export class EarthGeoData {
 
     const grid = this.gridHeader()
     const raw = this.gridView()
-    const out = new Float32Array(raw.length)
-    for (let i = 0; i < raw.length; i++) out[i] = raw[i] * grid.scale + grid.offset
-    this.gridValuesCache = out
-    return out
+    const scaled = new Float32Array(raw.length)
+    for (let index = 0; index < raw.length; index++) {
+      scaled[index] = raw[index] * grid.scale + grid.offset
+    }
+    this.gridValuesCache = scaled
+    return scaled
   }
 
   get range(): { min: number; max: number } | null {
