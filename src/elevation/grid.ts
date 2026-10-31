@@ -13,15 +13,15 @@ export type ElevationGrid = {
 }
 
 /* Fetch a terrain grid and decode it to metres. */
-export async function loadElevationGrid(
+export const loadElevationGrid = async (
   source = 'terrain-1024',
   options: SourceOptions = {},
-): Promise<ElevationGrid> {
+): Promise<ElevationGrid> => {
   return gridFromData(await openDataset(source, options))
 }
 
 /** The same, for a dataset you already have. */
-export function gridFromData(data: EarthGeoData): ElevationGrid {
+export const gridFromData = (data: EarthGeoData): ElevationGrid => {
   if (!data.grid) {
     throw new Error(
       `earthGeoData/${data.id}: kind is "${data.kind}", not a grid — loadElevationGrid needs one`,

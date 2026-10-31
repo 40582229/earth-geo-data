@@ -456,21 +456,11 @@ export const elevationRamp: { metres: number; rgb: Color3 }[] = [
 /* The ramp, baked into a lookup table before the globe is built. */
 const elevationTableSize = 4096
 
-// where the ramp crosses the waterline. findIndex stops at the first anchor at
-// or above 0 m, so the one before it is the last water anchor (-4 m).
-const firstLandAnchor = elevationRamp.findIndex((anchor) => anchor.metres >= 0)
-const lastWaterMetres = elevationRamp[firstLandAnchor - 1].metres
-const firstLandMetres = elevationRamp[firstLandAnchor].metres
-const lowestMetres = elevationRamp[0].metres
-const highestMetres = elevationRamp[elevationRamp.length - 1].metres
-const waterColourTable = bakeElevationTable(lowestMetres, lastWaterMetres)
-const landColourTable = bakeElevationTable(firstLandMetres, highestMetres)
-
-export function srgbToLinear(value: number): number {
+export const srgbToLinear = (value: number): number => {
   return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
 }
 
-function bakeElevationTable(fromMetres: number, toMetres: number): Float32Array {
+const bakeElevationTable = (fromMetres: number, toMetres: number): Float32Array => {
   const table = new Float32Array(elevationTableSize * 3)
   const step = (toMetres - fromMetres) / (elevationTableSize - 1)
   for (let index = 0; index < elevationTableSize; index++) {
@@ -483,7 +473,7 @@ function bakeElevationTable(fromMetres: number, toMetres: number): Float32Array 
 }
 
 /** Walk the anchors: what the ramp literally says at one height. */
-export function sampleRamp(metres: number): [number, number, number] {
+export const sampleRamp = (metres: number): [number, number, number] => {
   let lowerAnchor = elevationRamp[0]
   let upperAnchor = elevationRamp[elevationRamp.length - 1]
 
@@ -506,11 +496,21 @@ export function sampleRamp(metres: number): [number, number, number] {
   ]
 }
 
+// where the ramp crosses the waterline. findIndex stops at the first anchor at
+// or above 0 m, so the one before it is the last water anchor (-4 m).
+const firstLandAnchor = elevationRamp.findIndex((anchor) => anchor.metres >= 0)
+const lastWaterMetres = elevationRamp[firstLandAnchor - 1].metres
+const firstLandMetres = elevationRamp[firstLandAnchor].metres
+const lowestMetres = elevationRamp[0].metres
+const highestMetres = elevationRamp[elevationRamp.length - 1].metres
+const waterColourTable = bakeElevationTable(lowestMetres, lastWaterMetres)
+const landColourTable = bakeElevationTable(firstLandMetres, highestMetres)
+
 // one triple, reused. A fresh array per vertex would be 8.4 million of them.
 const scratchColor: [number, number, number] = [0, 0, 0]
 
 /* The colour for a height, out of the baked table. */
-export function elevationColor(metres: number): Color3 {
+export const elevationColor = (metres: number): Color3 => {
   const underwater = metres < 0
   const table = underwater ? waterColourTable : landColourTable
   const rangeStart = underwater ? lowestMetres : firstLandMetres

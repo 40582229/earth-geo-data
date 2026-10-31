@@ -53,7 +53,7 @@ export type Projector = {
   spin(longitude: number): number
 }
 
-export function projector(view: Partial<GlobeView> = {}): Projector {
+export const projector = (view: Partial<GlobeView> = {}): Projector => {
   const resolvedView: GlobeView = { ...defaultView, ...view }
   const relief = resolvedView.heightExaggeration / earthRadiusM
   const longitudeOffsetRadians = resolvedView.surface === 'sphere' ? resolvedView.longitudeOffset * radians : 0
@@ -122,7 +122,7 @@ export function projector(view: Partial<GlobeView> = {}): Projector {
 export type ElevationSampler = (longitude: number, latitude: number) => number
 
 /* A sampler that reads a grid dataset, bilinearly. */
-export function samplerFromGrid(data: EarthGeoData): ElevationSampler {
+export const samplerFromGrid = (data: EarthGeoData): ElevationSampler => {
   const grid = data.grid
   if (!grid) throw new Error(`earthGeoData/${data.id}: not a grid, so it cannot be sampled`)
 

@@ -26,11 +26,11 @@ export type SourceOptions = {
 const indexes = new Map<string, Promise<EarthGeoDataIndex>>()
 const readers = new Map<string, Reader>()
 
-function keyOf(options: SourceOptions): string {
+const keyOf = (options: SourceOptions): string => {
   return options.base === undefined ? '' : String(options.base)
 }
 
-function readerFor(options: SourceOptions): Reader {
+const readerFor = (options: SourceOptions): Reader => {
   if (options.read) return options.read
   const key = keyOf(options)
   let reader = readers.get(key)
@@ -42,7 +42,7 @@ function readerFor(options: SourceOptions): Reader {
 }
 
 /** The manifest: every dataset with its shape, size, licence and hash. */
-export function datasetIndex(options: SourceOptions = {}): Promise<EarthGeoDataIndex> {
+export const datasetIndex = (options: SourceOptions = {}): Promise<EarthGeoDataIndex> => {
   if (options.read) {
     return options.read('index.json', options.signal).then(parseIndex)
   }
@@ -57,15 +57,15 @@ export function datasetIndex(options: SourceOptions = {}): Promise<EarthGeoDataI
   return pending
 }
 
-function parseIndex(text: string): EarthGeoDataIndex {
+const parseIndex = (text: string): EarthGeoDataIndex => {
   return JSON.parse(text) as EarthGeoDataIndex
 }
 
 /** The manifest entry for an id, or the entry whose path matches. */
-export async function datasetEntry(
+export const datasetEntry = async (
   source: string,
   options: SourceOptions = {},
-): Promise<EarthGeoDataIndexEntry> {
+): Promise<EarthGeoDataIndexEntry> => {
   const index = await datasetIndex(options)
   const entry = isPath(source)
     ? index.datasets.find((candidate) => candidate.path === source || candidate.path.endsWith(`/${source}`))
@@ -82,15 +82,15 @@ export async function datasetEntry(
 
 /** True when the string looks like a path rather than an id. Ids never contain
  *  a slash or a dot; every path ends in .json. */
-export function isPath(source: string): boolean {
+export const isPath = (source: string): boolean => {
   return source.includes('/') || source.endsWith('.json')
 }
 
 /* Open a dataset by id or by path. */
-export async function openDataset(
+export const openDataset = async (
   source: string,
   options: SourceOptions = {},
-): Promise<EarthGeoData> {
+): Promise<EarthGeoData> => {
   const read = readerFor(options)
 
   if (isPath(source)) {
@@ -108,11 +108,11 @@ export async function openDataset(
 }
 
 /** Every dataset in the manifest. */
-export async function listDatasets(options: SourceOptions = {}): Promise<EarthGeoDataIndexEntry[]> {
+export const listDatasets = async (options: SourceOptions = {}): Promise<EarthGeoDataIndexEntry[]> => {
   return (await datasetIndex(options)).datasets
 }
 
-async function verify(path: string, text: string, expected: string): Promise<void> {
+const verify = async (path: string, text: string, expected: string): Promise<void> => {
   const bytes = new TextEncoder().encode(text)
   const digest = await crypto.subtle.digest('SHA-256', bytes)
   const actual = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')

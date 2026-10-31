@@ -5,18 +5,18 @@ export type Reader = (path: string, signal?: AbortSignal) => Promise<string>
 /* The folder the data ships in, resolved from this file's compiled location. */
 export const dataRoot = new URL('../../data/', import.meta.url)
 
-export function isNode(): boolean {
+export const isNode = (): boolean => {
   return typeof process !== 'undefined' && typeof process.versions?.node === 'string'
 }
 
-function isHttp(base: string | URL | undefined): boolean {
+const isHttp = (base: string | URL | undefined): boolean => {
   if (base === undefined) return false
   const text = typeof base === 'string' ? base : base.href
   return text.startsWith('http://') || text.startsWith('https://')
 }
 
 /* A URL from a string that might be absolute, or relative to the page. */
-function absolute(raw: string): URL {
+const absolute = (raw: string): URL => {
   try {
     return new URL(raw)
   } catch {
@@ -32,12 +32,12 @@ function absolute(raw: string): URL {
 
 /** Guaranteed to end in a slash so `new URL(path, it)` appends to the directory
  *  instead of replacing its last segment. */
-function asDirectory(url: URL): URL {
+const asDirectory = (url: URL): URL => {
   return url.pathname.endsWith('/') ? url : new URL(`${url.href}/`)
 }
 
 /** Read from disk. `base` is a folder path or a file: URL. */
-export function nodeReader(base: string | URL = dataRoot): Reader {
+export const nodeReader = (base: string | URL = dataRoot): Reader => {
   return async (path) => {
     const { readFile } = await import('node:fs/promises')
     let root: URL
@@ -54,7 +54,7 @@ export function nodeReader(base: string | URL = dataRoot): Reader {
 /** Read over the network. `base` has to be an absolute URL — `/data/` is not
  *  enough on its own, because relative to what is the browser's question, not
  *  this package's. */
-export function fetchReader(base: string | URL): Reader {
+export const fetchReader = (base: string | URL): Reader => {
   const root = asDirectory(typeof base === 'string' ? absolute(base) : asDirectory(base))
   return async (path, signal) => {
     const url = new URL(path, root)
@@ -67,7 +67,7 @@ export function fetchReader(base: string | URL): Reader {
 }
 
 /* The reader to use when the caller did not name one. */
-export function defaultReader(base?: string | URL): Reader {
+export const defaultReader = (base?: string | URL): Reader => {
   if (isHttp(base)) return fetchReader(base as string | URL)
   if (isNode()) return nodeReader(base ?? dataRoot)
   if (base === undefined) {

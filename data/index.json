@@ -1,11 +1,11 @@
 {
   "format": "earthGeoData-index/1",
-  "generated": "2026-10-26",
+  "generated": "2026-10-31",
   "root": "./",
   "totals": {
-    "datasets": 9,
-    "bytes": 344884761,
-    "megabytes": 344.9,
+    "datasets": 4,
+    "bytes": 78297914,
+    "megabytes": 78.3,
     "records": 0
   },
   "licences": {
@@ -14,19 +14,14 @@
       "etopo2022-surface-4096"
     ],
     "public domain / CC0 (Tilezen)": [
-      "terrain-1024",
-      "terrain-10800",
-      "terrain-2048",
-      "terrain-4096",
-      "terrain-5120",
-      "terrain-7200"
+      "terrain-4096"
     ],
     "public domain (NASA EOSDIS)": [
       "landcover-4096"
     ]
   },
   "byKind": {
-    "grid": 9
+    "grid": 4
   },
   "datasets": [
     {
@@ -72,69 +67,6 @@
       }
     },
     {
-      "id": "terrain-1024",
-      "path": "terrain/terrain-1024.json",
-      "kind": "grid",
-      "title": "Terrarium elevation, 1024x512 (0.3516° per cell)",
-      "width": 1024,
-      "height": 512,
-      "unit": "m",
-      "bytes": 1398859,
-      "sourceBytes": 1048576,
-      "sha256": "2e857c275fe6034c3f9f1eae90578c95a6f9a85732a7dd4126c80db0cb0b1132",
-      "licence": "public domain / CC0 (Tilezen)",
-      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
-      "retrieved": "2026-10-14",
-      "stats": {
-        "min": -9850,
-        "max": 6751,
-        "mean": -2094.6351833343506,
-        "count": 524288
-      }
-    },
-    {
-      "id": "terrain-10800",
-      "path": "terrain/terrain-10800.json",
-      "kind": "grid",
-      "title": "Terrarium elevation, 10800x5400 (0.0333° per cell)",
-      "width": 10800,
-      "height": 5400,
-      "unit": "m",
-      "bytes": 155520764,
-      "sourceBytes": 116640000,
-      "sha256": "5e471d85eb4dcf242c688c23baa79ee5e9638cafc8e8f90dbd5cdffa8cbb3ab4",
-      "licence": "public domain / CC0 (Tilezen)",
-      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
-      "retrieved": "2026-10-21",
-      "stats": {
-        "min": -10742,
-        "max": 7992,
-        "mean": -2095.232051440329,
-        "count": 58320000
-      }
-    },
-    {
-      "id": "terrain-2048",
-      "path": "terrain/terrain-2048.json",
-      "kind": "grid",
-      "title": "Terrarium elevation, 2048x1024 (0.1758° per cell)",
-      "width": 2048,
-      "height": 1024,
-      "unit": "m",
-      "bytes": 5593167,
-      "sourceBytes": 4194304,
-      "sha256": "ba5ba3726bdf7183f816cd0b62f08ecdecd2cd727bc230d69057d0043c4e21ca",
-      "licence": "public domain / CC0 (Tilezen)",
-      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
-      "retrieved": "2026-10-14",
-      "stats": {
-        "min": -10615,
-        "max": 6729,
-        "mean": -2094.8242721557617,
-        "count": 2097152
-      }
-    },
-    {
       "id": "terrain-4096",
       "path": "terrain/terrain-4096.json",
       "kind": "grid",
@@ -153,48 +85,6 @@
         "max": 7320,
         "mean": -2095.288790345192,
         "count": 8388608
-      }
-    },
-    {
-      "id": "terrain-5120",
-      "path": "terrain/terrain-5120.json",
-      "kind": "grid",
-      "title": "Terrarium elevation, 5120x2560 (0.0703° per cell)",
-      "width": 5120,
-      "height": 2560,
-      "unit": "m",
-      "bytes": 34953297,
-      "sourceBytes": 26214400,
-      "sha256": "55a76b1ca45373f195e72a81e237efc124190baec29d694be5f99bf3f4b758be",
-      "licence": "public domain / CC0 (Tilezen)",
-      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
-      "retrieved": "2026-10-14",
-      "stats": {
-        "min": -10615,
-        "max": 7490,
-        "mean": -2095.5096878814697,
-        "count": 13107200
-      }
-    },
-    {
-      "id": "terrain-7200",
-      "path": "terrain/terrain-7200.json",
-      "kind": "grid",
-      "title": "Terrarium elevation, 7200x3600 (0.0500° per cell)",
-      "width": 7200,
-      "height": 3600,
-      "unit": "m",
-      "bytes": 69120760,
-      "sourceBytes": 51840000,
-      "sha256": "a0972b3ba20d7386487cb0f4c667b2009515a8ddacab21cf186c80440fa2b3b8",
-      "licence": "public domain / CC0 (Tilezen)",
-      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
-      "retrieved": "2026-10-14",
-      "stats": {
-        "min": -10689,
-        "max": 7573,
-        "mean": -2095.676255594136,
-        "count": 25920000
       }
     },
     {

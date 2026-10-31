@@ -75,10 +75,10 @@ export type SurfaceOptions = {
 export type LoadOptions = SourceOptions & SurfaceOptions
 
 /* Turn a height grid into xyz positions, rgb colours and indices. */
-export function buildSurface(
+export const buildSurface = (
   grid: ElevationGrid,
   options: SurfaceOptions = {},
-): ElevationSurface {
+): ElevationSurface => {
   const { width, height, heights } = grid
   const layout = gridLayout(grid)
   const project = projector({ ...defaultView, ...options.view })
@@ -190,19 +190,19 @@ export function buildSurface(
 }
 
 /* The one call a first look needs: fetch, decode, and hand back three arrays you can put straight into… */
-export async function loadSurface(
+export const loadSurface = async (
   source = 'terrain-1024',
   options: LoadOptions = {},
-): Promise<ElevationSurface> {
+): Promise<ElevationSurface> => {
   const data = await openDataset(source, options)
   return buildSurfaceFromData(data, options)
 }
 
 /** Build a surface from a dataset you already have. */
-export function buildSurfaceFromData(
+export const buildSurfaceFromData = (
   data: EarthGeoData,
   options: SurfaceOptions = {},
-): ElevationSurface {
+): ElevationSurface => {
   if (!data.grid) {
     throw new Error(
       `earthGeoData/${data.id}: kind is "${data.kind}", not a grid — there is no surface in it`,

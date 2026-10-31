@@ -56,10 +56,10 @@ export type ContourOptions = {
 const initialVertices = 8192
 
 /* Trace the height lines out of a grid. */
-export function buildContours(
+export const buildContours = (
   grid: ElevationGrid,
   options: ContourOptions = {},
-): ContourLines {
+): ContourLines => {
   const { width, height, heights } = grid
   const layout = gridLayout(grid)
   /* Inherit the view from a surface, because a surface *is* a grid — and a
@@ -246,14 +246,14 @@ export function buildContours(
 
 /** How far along a→b the level crosses, clamped to the edge. A flat edge has no
  *  crossing, so it is given the midpoint rather than a division by zero. */
-function fraction(fromValue: number, toValue: number, level: number): number {
+const fraction = (fromValue: number, toValue: number, level: number): number => {
   const span = toValue - fromValue
   const along = span !== 0 ? (level - fromValue) / span : 0.5
   return along < 0 ? 0 : along > 1 ? 1 : along
 }
 
 /** First index whose level is >= value. Levels arrive sorted. */
-function lowerBound(levels: readonly number[], value: number): number {
+const lowerBound = (levels: readonly number[], value: number): number => {
   let lowerIndex = 0
   let upperIndex = levels.length
   while (lowerIndex < upperIndex) {
@@ -264,7 +264,7 @@ function lowerBound(levels: readonly number[], value: number): number {
   return lowerIndex
 }
 
-function resolveLevels(grid: ElevationGrid, options: ContourOptions): number[] {
+const resolveLevels = (grid: ElevationGrid, options: ContourOptions): number[] => {
   let levels: number[]
   if (options.levels) levels = [...options.levels]
   else if (options.every !== undefined) levels = levelsEvery(grid, options.every)
@@ -292,7 +292,7 @@ function resolveLevels(grid: ElevationGrid, options: ContourOptions): number[] {
   return unique
 }
 
-function levelsEvery(grid: ElevationGrid, every: number): number[] {
+const levelsEvery = (grid: ElevationGrid, every: number): number[] => {
   if (!(every > 0)) {
     throw new Error(`earthGeoData: contours every ${every} — it has to be more than 0 metres`)
   }
@@ -304,7 +304,7 @@ function levelsEvery(grid: ElevationGrid, every: number): number[] {
   return levels
 }
 
-function scanRange(values: Float32Array): { min: number; max: number } {
+const scanRange = (values: Float32Array): { min: number; max: number } => {
   let min = Infinity
   let max = -Infinity
   for (let index = 0; index < values.length; index++) {

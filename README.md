@@ -17,7 +17,7 @@ npm install earth-geo-data
 ```js
 import { loadSurface, buildContours } from 'earth-geo-data'
 
-const surface = await loadSurface('terrain-2048', { view: { surface: 'plane' } })
+const surface = await loadSurface('terrain-4096', { view: { surface: 'plane' } })
 const lines   = buildContours(surface, { every: 100 })
 
 geometry.setAttribute('position', new BufferAttribute(surface.positions, 3))
@@ -29,60 +29,30 @@ geometry.setAttribute('position', new BufferAttribute(lines.positions, 3))  // L
 
 ## What ships
 
-Nine grids, 345 MB of JSON, 259 MB of payload.
-
-Four of them are small enough to commit and **are in this repository**:
-`terrain-4096`, both `etopo2022-*` surfaces, and `landcover-4096` — 78 MB
-together, which is what a clone costs you. The other five are generated rather
-than written by hand, and one of them is past what GitHub will take in a single
-file.
-
-```bash
-EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data   # the elevation grids
-python3 scripts/fetch-landcover.py                           # the land-cover grid
-```
-
-`prepare-data` copies the elevation grids out of a folder shaped like this
-package's own `data/` — an `earthGeoData` manifest and the files it lists — while
-`fetch-landcover.py` builds its grid from NASA GIBS (needs Pillow). Run them in
-either order. The manifest is rebuilt from whatever is on disk and hashed as it
-is, and `npm test` checks the two against each other.
-
-The table below is the full nine, which is what you get once both have run.
+Four grids, 78 MB of JSON, 59 MB of payload.
 
 | id | shape | cell | what it is |
 |---|---|---|---|
-| `terrain-1024` | 1024×512 | 0.352° | the whole planet, fast |
-| `terrain-2048` | 2048×1024 | 0.176° | the good default |
-| `terrain-4096` | 4096×2048 | 0.088° | |
-| `terrain-5120` | 5120×2560 | 0.070° | |
-| `terrain-7200` | 7200×3600 | 0.050° | the finest that still meshes |
-| `terrain-10800` | 10800×5400 | 0.033° | data only — see below |
+| `terrain-4096` | 4096×2048 | 0.088° | the planet, one height per cell |
 | `etopo2022-surface-4096` | 4096×2048 | 0.088° | the top of the ice |
 | `etopo2022-bed-4096` | 4096×2048 | 0.088° | the rock underneath it |
 | `landcover-4096` | 4096×2048 | 0.088° | what is growing on it — see below |
 
-The six `terrain-*` are the same planet at six resolutions — a pyramid, so a
-consumer can pick a level per screen or later per tile. The two `etopo2022-*`
-differ *only* in the ice: subtract bed from surface and you have ice thickness.
+All four are registered to each other: same 4096×2048 layout, same cell, same
+row zero. Subtract bed from surface and you have ice thickness.
 
-`terrain-10800` is the odd one out on purpose. Its mesh would be 2.8 GB of
-buffers, so it is a **grid and nothing else** — something to trace contours out
-of and to sample with `samplerFromGrid`. It is the answer to "can I get closer
-without a bigger mesh": yes, as data, and no as geometry.
+They are in the repository, so cloning is all you need. The finer Terrarium
+resolutions exist — 5120, 7200, 10800 — and `npm run prepare-data -- --all`
+copies them out of a source folder if you want them locally:
 
-What that buys, sampled at Everest (86.925°E 27.988°N, true summit 8,849 m):
+```bash
+EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data -- --all
+```
 
-| grid | cell | at the summit |
-|---|---|---|
-| `terrain-1024` | 0.352° | 5,518 m |
-| `terrain-4096` | 0.088° | 6,619 m |
-| `terrain-7200` | 0.050° | 7,441 m |
-| `terrain-10800` | 0.033° | 7,823 m |
-
-It rises with every step and never arrives: the summit is smaller than a cell,
-and the grid's own maximum at 10800 is 7,992 m. That is the ceiling, and it is
-the data's, not the code's.
+They are not shipped: the three together are 260 MB, and `terrain-10800` alone is
+past what GitHub will take in a file. `prepare-data` also rebuilds
+`data/index.json` from whatever is on disk and hashes it, and `npm test` checks
+the two against each other.
 
 ## Sphere or flat
 
@@ -147,9 +117,10 @@ Eleven megabytes, against 700 MB for the same thing stored as RGB pixels. A
 class code is one byte and the palette is seventeen colours, so the resolution
 can stay this low and the planet still reads.
 
-The two grids do not have to be the same size. Every lookup is scaled by the
-ratio, so `landcover-4096` paints a 1024-wide surface and an 8192-wide one
-without resampling a file.
+The class grid and the height grid are the same 4096×2048, so a cell looks up
+the cell it belongs to. Sampling at another resolution works too: every lookup
+scales by the ratio, so the same file can paint a bigger surface later without
+being resampled.
 
 What it cannot do is rain shadows: Lima is a desert at 12°S beside a rainforest
 at the same latitude, and nothing here can see the Andes between them. That is a
@@ -170,9 +141,7 @@ differently from the 250 m one without scanning.
 
 | grid | segments | traced in |
 |---|---|---|
-| `terrain-1024` | 293,084 | 53 ms |
-| `terrain-2048` | 839,308 | 114 ms |
-| `terrain-4096` | 2,197,861 | 320 ms |
+| `terrain-4096` | 2,197,861 | 376 ms |
 
 The default levels are uneven on purpose: −500, −1000, −2000, −3000, −4000,
 −5000, −6000 below sea level, then 250, 500, 1000, 1500, 2000, 3000, 4000, 5000,
@@ -204,14 +173,14 @@ configure. A browser cannot read files, so serve the `data/` folder yourself and
 say where it is:
 
 ```js
-const surface = await loadSurface('terrain-2048', { base: '/earth-geo/' })
+const surface = await loadSurface('terrain-4096', { base: '/earth-geo/' })
 ```
 
 ```bash
 cp -r node_modules/earth-geo-data/data public/earth-geo
 ```
 
-Anything you do not want to serve, do not copy. `terrain-7200` alone is 69 MB.
+Anything you do not want to serve, do not copy.
 
 ## The format
 
@@ -225,12 +194,11 @@ in it, and the loader says so by name rather than by producing an empty mesh.
 ## Cost, so it is not a surprise
 
 A surface is three arrays: positions and colours at 3 float32 per vertex, and
-indices at 1 uint32 per corner. At `terrain-7200` that is **1.24 GB** — 25.9 M
-vertices, 155 M triangle corners. `terrain-4096` is 403 MB, and `terrain-10800`
-would be 2.8 GB, which is why it does not have a mesh.
+indices at 1 uint32 per corner. On the shipped grid that is **400 MB** — 8.4 M
+vertices, 16.8 M triangles. Budget for it before you build one.
 
-The data caps it: 7200 columns is 0.05° a cell, about 5.5 km. Nothing here
-invents detail below that.
+The data caps the detail: 4096 columns is 0.088° a cell, about 9.8 km at the
+equator. Nothing here invents detail below that.
 
 ## Licences
 

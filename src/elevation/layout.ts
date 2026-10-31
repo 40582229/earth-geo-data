@@ -1,7 +1,7 @@
 import type { GridHeader } from '../dataset/container.js'
 import type { ElevationGrid } from './grid.js'
 
-export function gridLayout(grid: ElevationGrid): GridHeader {
+export const gridLayout = (grid: ElevationGrid): GridHeader => {
   const header = grid.data.grid
   if (!header) {
     throw new Error(

@@ -113,7 +113,7 @@ const envelopeKeys = new Set([
   'byteLength', 'grid', 'recordCount', 'fields', 'parts', 'polygons', 'stats', 'data',
 ])
 
-export function base64ToBytes(base64: string, byteLength: number): Uint8Array {
+export const base64ToBytes = (base64: string, byteLength: number): Uint8Array => {
   const binary = atob(base64)
   if (binary.length !== byteLength) {
     throw new Error(
@@ -484,6 +484,6 @@ export type EarthGeoDataIndex = {
   datasets: EarthGeoDataIndexEntry[]
 }
 
-export function parseEarthGeoData(json: EarthGeoDataJson): EarthGeoData {
+export const parseEarthGeoData = (json: EarthGeoDataJson): EarthGeoData => {
   return new EarthGeoData(json)
 }

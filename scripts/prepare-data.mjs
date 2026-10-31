@@ -38,7 +38,15 @@ const index = JSON.parse(await readFile(join(source, 'index.json'), 'utf8'))
 const isElevation = (entry) =>
   entry.path.startsWith('terrain/terrain-') || entry.path.startsWith('etopo/')
 
-const elevation = index.datasets.filter(isElevation)
+/* Three of the seven ship. The rest of the pyramid is 265 MB, and one of them is
+   past GitHub's file limit, so they are opt-in: `--all` copies every resolution
+   the source offers, which is what you want locally and never in CI. */
+const shippedElevation = ['terrain-4096', 'etopo2022-bed-4096', 'etopo2022-surface-4096']
+const wantsEverything = process.argv.includes('--all')
+
+const elevation = index.datasets
+  .filter(isElevation)
+  .filter((entry) => wantsEverything || shippedElevation.includes(entry.id))
 
 if (!elevation.length) {
   console.error(`no elevation datasets in ${source}/index.json`)
@@ -54,7 +62,7 @@ for (const entry of elevation) {
 }
 
 /** Every dataset file in data/, relative to it and sorted. index.json is not one. */
-async function datasetsIn(dir, prefix = '') {
+const datasetsIn = async (dir, prefix = '') => {
   const found = []
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const path = prefix ? `${prefix}/${entry.name}` : entry.name
@@ -67,7 +75,7 @@ async function datasetsIn(dir, prefix = '') {
 /* An entry for a file the source manifest did not describe. Everything in it is
    read straight out of the envelope the file carries, the same fields the source uses,
    so both kinds of entry sit in one list without a special case. */
-function describe(path, envelope, bytes, sha256) {
+const describe = (path, envelope, bytes, sha256) => {
   const grid = envelope.grid ?? {}
   const origin = envelope.source ?? {}
 

@@ -48,7 +48,7 @@ const defaults: Resolved = {
   land: landCoverColor,
 }
 
-function resolve(options: EarthColourOptions): Resolved {
+const resolve = (options: EarthColourOptions): Resolved => {
   if (options.snow === undefined && options.ice === undefined &&
       !options.ocean && !options.land) return defaults
   return {
@@ -60,7 +60,7 @@ function resolve(options: EarthColourOptions): Resolved {
 }
 
 /* Annual mean air temperature at a latitude and a height, in °C. */
-export function annualMeanCelsius(latitude: number, metres: number): number {
+export const annualMeanCelsius = (latitude: number, metres: number): number => {
   return 27 - 0.0068 * latitude * latitude - 0.0065 * metres
 }
 
@@ -70,7 +70,7 @@ const snowLineC = -9.5
  *  person means by "the snow line". 5,615 m at the equator, 3,500 m at 45°,
  *  1,850 m at 60°, and at sea level at about 73° — which is roughly where the
  *  last glaciers that reach the water are. */
-export function snowLineMetres(latitude: number): number {
+export const snowLineMetres = (latitude: number): number => {
   return (27 - snowLineC - 0.0068 * latitude * latitude) / 0.0065
 }
 
@@ -80,7 +80,7 @@ const snowBandC = 9
 /** How white a place is, 0..1: none at -5 °C and above, all of it at -14 °C and
  *  below. A band rather than a line because a hard snow line on a smooth 10 km
  *  grid looks like a contour, and snow does not stop at an altitude. */
-function snowAmount(latitude: number, metres: number): number {
+const snowAmount = (latitude: number, metres: number): number => {
   const snowFraction = (snowWarmEdgeC - annualMeanCelsius(latitude, metres)) / snowBandC
   return snowFraction < 0 ? 0 : snowFraction > 1 ? 1 : snowFraction
 }
@@ -89,7 +89,7 @@ function snowAmount(latitude: number, metres: number): number {
 // are copied rather than aliased; nothing here allocates per vertex.
 const mixed: [number, number, number] = [0, 0, 0]
 
-function paint(metres: number, classId: number, latitude: number, resolved: Resolved): Color3 {
+const paint = (metres: number, classId: number, latitude: number, resolved: Resolved): Color3 => {
   // Ice first, and before the ocean test: an ice shelf is below sea level and
   // still white, and so is the sea ice over the Arctic.
   if (resolved.ice && classId === snowClass) return resolved.land(snowClass)
@@ -121,16 +121,16 @@ function paint(metres: number, classId: number, latitude: number, resolved: Reso
 }
 
 /* The colour of a point, given everything that decides it: how high it is, what is on it, and how far from… */
-export function earthColour(metres: number, classId: number, latitude: number): Color3 {
+export const earthColour = (metres: number, classId: number, latitude: number): Color3 => {
   return paint(metres, classId, latitude, defaults)
 }
 
 /* A `colourOf` for `buildSurface`: the rule above, wired to the two grids. */
-export function earthColours(
+export const earthColours = (
   grid: ElevationGrid,
   cover: LandCoverGrid,
   options: EarthColourOptions = {},
-): SurfaceColour {
+): SurfaceColour => {
   const resolved = resolve(options)
   const layout = gridLayout(grid)
   const width = grid.width

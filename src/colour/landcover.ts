@@ -43,12 +43,12 @@ export const snowClass = 15
 const byId = new Map(landCover.map((entry) => [entry.id, entry]))
 
 /** One class by code, or undefined for a code this table has never heard of. */
-export function landCoverClass(id: number): LandCoverClass | undefined {
+export const landCoverClass = (id: number): LandCoverClass | undefined => {
   return byId.get(id)
 }
 
 /* The colour of a class, in linear light — the space a vertex buffer wants. */
-export function landCoverColor(id: number): Color3 {
+export const landCoverColor = (id: number): Color3 => {
   const entry = byId.get(id) ?? byId.get(17)!
   scratch[0] = srgbToLinear(entry.rgb[0])
   scratch[1] = srgbToLinear(entry.rgb[1])
@@ -58,11 +58,11 @@ export function landCoverColor(id: number): Color3 {
 const scratch: [number, number, number] = [0, 0, 0]
 
 /** The name of a class, for a legend or an assertion. */
-export function landCoverName(id: number): string {
+export const landCoverName = (id: number): string => {
   return landCoverClass(id)?.name ?? `class ${id}`
 }
 
 /** The class whose `key` matches, which is the readable way to say "snow". */
-export function landCoverId(key: string): number | undefined {
+export const landCoverId = (key: string): number | undefined => {
   return landCover.find((entry) => entry.key === key)?.id
 }

@@ -47,6 +47,25 @@ What is left short is what the domain already speaks: the coordinates `x`, `y`,
 `z`, `lon`, `lat`, and the colour triple `rgb`. Everything else is written out —
 `earthRadiusM`, `snowWarmEdgeC`, `columnFraction`, `topRightHeight`.
 
+**Arrow functions, always.** The `function` keyword does not appear in this
+repository — not for exports, not for helpers:
+
+```ts
+export const loadLandCover = async (
+  source = 'landcover-4096',
+  options: SourceOptions = {},
+): Promise<LandCoverGrid> => landCoverFromData(await openDataset(source, options))
+
+const snowAmount = (latitude: number, metres: number): number => {
+  const fraction = (snowWarmEdgeC - annualMeanCelsius(latitude, metres)) / snowBandC
+  return fraction < 0 ? 0 : fraction > 1 ? 1 : fraction
+}
+```
+
+A `function` declaration hoists, a `const` arrow does not, so **declare helpers
+above the code that runs at module load**. The compiler says `TS2448` when you
+get it wrong, and a `ReferenceError` if something slips past it.
+
 ## Comments
 
 Default to **none**. Write one only when the code cannot say it itself:
@@ -92,7 +111,7 @@ and so on — so the barrels are public API, not tidiness.
 npm install          # dev dependencies only; there are no runtime ones
 npm run build        # tsc -> dist/
 npm run typecheck    # tsc --noEmit
-npm test             # build, then 92 checks against the real data
+npm test             # build, then 82 checks against the real data
 npm run prepare-data # fill data/ from a source folder (see below)
 ```
 
@@ -112,17 +131,22 @@ npm run prepare-data # fill data/ from a source folder (see below)
 
 ## Data
 
-Nine grids ship in the package, 345 MB. Four are committed — `terrain-4096`,
-both `etopo2022-4096` surfaces and `landcover-4096`, 78 MB. The other five are
-listed in `.gitignore` and generated:
+Four grids ship, 78 MB, all of them committed: `terrain-4096`, both
+`etopo2022-4096` surfaces and `landcover-4096`. The finer Terrarium resolutions
+are listed in `.gitignore` and are opt-in:
 
 ```bash
-EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data   # elevation grids
-python3 scripts/fetch-landcover.py                           # land cover (needs Pillow)
+EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data -- --all
+python3 scripts/fetch-landcover.py                      # rebuild the class grid
 ```
 
-`test/run.mjs` says which datasets are missing before it runs anything, so a
-fresh clone fails with an instruction instead of an `ENOENT`.
+Without `--all`, `prepare-data` copies only the shipped three and leaves
+anything else in `data/` alone, then rewrites `data/index.json` to describe
+exactly what is on disk. That file is generated — never hand-edit it.
+
+Anything you add to `data/` by hand is picked up by the next run and described
+from its own envelope, which is how `landcover-4096` survived being fetched by a
+different script.
 
 ## Before you commit
 
@@ -130,5 +154,5 @@ fresh clone fails with an instruction instead of an `ENOENT`.
 npm run typecheck && npm test
 ```
 
-All 92 checks pass, the working tree contains no data files that should have
-been generated, and the diff contains no banner comments.
+All 82 checks pass, `data/` holds the four grids and nothing else, and the diff
+contains no banner comments.

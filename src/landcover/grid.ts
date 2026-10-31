@@ -14,7 +14,7 @@ export type LandCoverGrid = {
 /** The class code at a cell. Out-of-range cells throw rather than wrap: a colour
  *  read one row off is a coastline in the wrong place, which is exactly the kind
  *  of bug this package exists to make impossible. */
-export function classAt(grid: LandCoverGrid, column: number, row: number): number {
+export const classAt = (grid: LandCoverGrid, column: number, row: number): number => {
   if (column < 0 || column >= grid.width || row < 0 || row >= grid.height) {
     throw new Error(
       `earthGeoData/${grid.data.id}: cell (${column}, ${row}) is outside the ` +
@@ -25,7 +25,7 @@ export function classAt(grid: LandCoverGrid, column: number, row: number): numbe
 }
 
 /** Wrap a land-cover dataset you already have. */
-export function landCoverFromData(data: EarthGeoData): LandCoverGrid {
+export const landCoverFromData = (data: EarthGeoData): LandCoverGrid => {
   const header = data.grid
   if (!header) {
     throw new Error(
@@ -49,9 +49,9 @@ export function landCoverFromData(data: EarthGeoData): LandCoverGrid {
 
 /** Fetch a land-cover grid and hand back the classes, with no decode step:
  *  unlike elevation there is no scale and no offset to undo. */
-export async function loadLandCover(
+export const loadLandCover = async (
   source = 'landcover-4096',
   options: SourceOptions = {},
-): Promise<LandCoverGrid> {
+): Promise<LandCoverGrid> => {
   return landCoverFromData(await openDataset(source, options))
 }

@@ -1,13 +1,9 @@
 #!/usr/bin/env node
-/* ════════════════════════════════════════════════════════════════════════════
-   run.mjs — what the package promises, checked against the real data
+/* run.mjs — what the package promises, checked against the real data.
 
-   Run with `npm test`, which builds first. The point of most of these is not
-   "it did not throw": it is that the numbers are the numbers. In particular the
-   contour segment counts are checked against an independent implementation —
-   the Python marching squares that produced the shipped 838,605-segment layer —
-   so a change to the tracer that alters a single case shows up here.
-   ════════════════════════════════════════════════════════════════════════════ */
+   Run with `npm test`, which builds first. Most of these are not "it did not
+   throw": they are numbers, checked against an independent implementation, so a
+   change to the tracer that alters a single case shows up here. */
 
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -22,7 +18,7 @@ import {
 let passed = 0
 const failures = []
 
-function check(name, ok, detail = '') {
+const check = (name, ok, detail = '') => {
   if (ok) {
     passed++
     console.log(`  ok    ${name}${detail ? `  — ${detail}` : ''}`)
@@ -32,11 +28,11 @@ function check(name, ok, detail = '') {
   }
 }
 
-function identical(name, actual, expected) {
+const identical = (name, actual, expected) => {
   check(name, actual === expected, `${actual}${actual === expected ? '' : ` (expected ${expected})`}`)
 }
 
-function section(title) {
+const section = (title) => {
   console.log(`\n${title}`)
 }
 
@@ -44,6 +40,15 @@ const time = (label, fn) => {
   const started = performance.now()
   const value = fn()
   return [value, performance.now() - started, label]
+}
+
+/** Which level a vertex belongs to, found from the level offsets. */
+const findLevel = (lines, vertex) => {
+  const segment = vertex / 2
+  for (let index = lines.levels.length - 1; index >= 0; index--) {
+    if (segment >= lines.levels[index].offset) return lines.levels[index].level
+  }
+  return lines.levels[0].level
 }
 
 /* ── is the data here at all? ─────────────────────────────────────────────── */
@@ -60,13 +65,7 @@ const time = (label, fn) => {
     .map((entry) => entry.id)
 
   if (missing.length) {
-    console.error(
-      `\n${missing.length} of ${index.datasets.length} datasets are not in data/: ` +
-      `${missing.join(', ')}\n\n` +
-      'These are generated, not committed. Produce them with:\n\n' +
-      '  EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data\n\n' +
-      'where that folder holds an earthGeoData index.json and the files it lists.\n',
-    )
+    console.error(`\ndata/ is missing ${missing.join(', ')}\n`)
     process.exit(1)
   }
 }
@@ -76,18 +75,16 @@ const time = (label, fn) => {
 section('the manifest')
 {
   const index = await datasetIndex()
-  identical('nine datasets ship', index.datasets.length, 9)
+  identical('four datasets ship', index.datasets.length, 4)
   check(
     'every one is a grid',
     index.datasets.every((d) => d.kind === 'grid'),
     index.datasets.map((d) => d.id).join(', '),
   )
   check(
-    'six Terrarium resolutions, both ETOPO surfaces, one class grid',
+    'one Terrarium grid, both ETOPO surfaces, one class grid',
     index.datasets.map((d) => d.id).sort().join(',') === [
-      'etopo2022-bed-4096', 'etopo2022-surface-4096', 'landcover-4096',
-      'terrain-1024', 'terrain-10800', 'terrain-2048', 'terrain-4096',
-      'terrain-5120', 'terrain-7200',
+      'etopo2022-bed-4096', 'etopo2022-surface-4096', 'landcover-4096', 'terrain-4096',
     ].join(','),
   )
   check(
@@ -96,18 +93,18 @@ section('the manifest')
       === 'landcover-4096:class',
   )
 
-  const entry = await datasetEntry('terrain-1024')
-  identical('an id resolves to its path', entry.path, 'terrain/terrain-1024.json')
+  const entry = await datasetEntry('terrain-4096')
+  identical('an id resolves to its path', entry.path, 'terrain/terrain-4096.json')
 }
 
 /* ── decoding ─────────────────────────────────────────────────────────────── */
 
 section('decoding')
 {
-  const grid = await loadElevationGrid('terrain-1024')
-  identical('width', grid.width, 1024)
-  identical('height', grid.height, 512)
-  identical('one height per cell', grid.heights.length, 1024 * 512)
+  const grid = await loadElevationGrid('terrain-4096')
+  identical('width', grid.width, 4096)
+  identical('height', grid.height, 2048)
+  identical('one height per cell', grid.heights.length, 4096 * 2048)
 
   const stats = grid.data.stats
   let lowest = Infinity
@@ -123,8 +120,8 @@ section('decoding')
     `${stats.min} .. ${stats.max} m`,
   )
 
-  const verified = await loadElevationGrid('terrain-1024', { verify: true })
-  identical('the file matches the manifest hash', verified.heights.length, 1024 * 512)
+  const verified = await loadElevationGrid('terrain-4096', { verify: true })
+  identical('the file matches the manifest hash', verified.heights.length, 4096 * 2048)
 
   let threw = false
   try {
@@ -135,20 +132,16 @@ section('decoding')
   check('a dataset that is not here says so', threw)
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   the surface
-   ══════════════════════════════════════════════════════════════════════════ */
-
 section('a grid becomes a surface')
-const sphere = await loadSurface('terrain-1024')
+let sphere = await loadSurface('terrain-4096')
 {
-  const columns = 1024 + 1
-  identical('vertices (one extra column closes the seam)', sphere.count, columns * 512)
+  const columns = 4096 + 1
+  identical('vertices (one extra column closes the seam)', sphere.count, columns * 2048)
   identical('positions', sphere.positions.length, sphere.count * 3)
   identical('colours', sphere.colors.length, sphere.count * 3)
-  identical('triangles', sphere.indices.length / 3, 1024 * 511 * 2)
+  identical('triangles', sphere.indices.length / 3, 4096 * 2047 * 2)
   identical('the shape it was built as', sphere.info.surface, 'sphere')
-  identical('degrees per column', Number(sphere.info.cellDegrees.toFixed(4)), 0.3516)
+  identical('degrees per column', Number(sphere.info.cellDegrees.toFixed(4)), 0.0879)
   check(
     'relief is pushed out, and the ocean floor is inside sea level',
     sphere.info.radiusMax > 6 && sphere.info.radiusMin < 6,
@@ -164,7 +157,7 @@ const sphere = await loadSurface('terrain-1024')
 }
 
 section('the same grid, laid out flat')
-const plane = await loadSurface('terrain-1024', { view: { surface: 'plane' } })
+let plane = await loadSurface('terrain-4096', { view: { surface: 'plane' } })
 {
   identical('the same vertex count', plane.count, sphere.count)
   identical('the same index count', plane.indices.length, sphere.indices.length)
@@ -216,20 +209,16 @@ const plane = await loadSurface('terrain-1024', { view: { surface: 'plane' } })
   identical('no triangle faces away from +y', total - facingUp, 0)
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   the contours
-   ══════════════════════════════════════════════════════════════════════════ */
-
 /* Segment counts from the Python reference implementation (gen-terrain.py's
    marching_squares), run over the same grids at the same sixteen levels. These
    are exact: every one of the sixteen cases, both saddles included, has to
    agree or the number moves. */
 const reference = {
-  'terrain-1024': {
+  'terrain-4096': {
     total: 293084,
     counts: [22169, 18369, 22523, 35969, 48405, 37837, 5782, 33473, 29087, 18396, 11130, 5710, 1900, 1310, 994, 30],
   },
-  'terrain-2048': {
+  'terrain-4096': {
     total: 839308,
     counts: [53377, 43636, 57706, 103798, 151193, 122422, 18848, 91158, 81034, 53050, 32154, 17302, 5756, 4304, 3462, 108],
   },
@@ -239,31 +228,24 @@ const reference = {
   },
 }
 
-/** The shipped contour layer, drawn from the same 8192-cell source DEM: 16
- *  levels, 838,605 segments. Not identical to terrain-2048 — that grid is the
- *  same DEM subsampled slightly differently — but within a tenth of a percent,
- *  which is the check that the tracer is looking at the same planet. */
-const shippedLayerSegments = 838605
+// each of those was 400 MB; nothing below needs them
+sphere = null
+plane = null
 
 section('height lines')
 {
-  const grid = await loadElevationGrid('terrain-2048')
+  const grid = await loadElevationGrid('terrain-4096')
   const [lines, ms] = time('contours', () => buildContours(grid))
 
   identical('levels traced', lines.levels.length, hypsometricLevels.length)
-  identical('total segments', lines.segments, reference['terrain-2048'].total)
-  check(
-    'the shipped layer agrees to a tenth of a percent',
-    Math.abs(lines.segments - shippedLayerSegments) / shippedLayerSegments < 0.001,
-    `${lines.segments} vs ${shippedLayerSegments} segments`,
-  )
+  identical('total segments', lines.segments, reference['terrain-4096'].total)
   console.log(`        (traced in ${ms.toFixed(0)} ms)`)
 
   const expected = [...hypsometricLevels].sort((left, right) => left - right)
   let mismatches = 0
   for (let index = 0; index < expected.length; index++) {
     const level = lines.levels[index]
-    const want = reference['terrain-2048'].counts[hypsometricLevels.indexOf(expected[index])]
+    const want = reference['terrain-4096'].counts[hypsometricLevels.indexOf(expected[index])]
     if (level.level !== expected[index] || level.segments !== want) {
       mismatches++
       console.log(`        level ${expected[index]}: got ${level.segments}, expected ${want}`)
@@ -281,7 +263,7 @@ section('height lines')
 
 section('the lines sit on the height they claim')
 {
-  const grid = await loadElevationGrid('terrain-1024')
+  const grid = await loadElevationGrid('terrain-4096')
   const flat = buildContours(grid, { view: { surface: 'plane' } })
   const perDegree = 6 / 180
   const perMetre = (6 * 30) / earthRadiusM
@@ -312,7 +294,7 @@ section('the lines sit on the height they claim')
 
 section('the shape does not change the lines')
 {
-  const grid = await loadElevationGrid('terrain-1024')
+  const grid = await loadElevationGrid('terrain-4096')
   const round = buildContours(grid)
   const flat = buildContours(grid, { view: { surface: 'plane' } })
   identical('a sphere and a plane trace the same segments', round.segments, flat.segments)
@@ -332,7 +314,7 @@ section('the shape does not change the lines')
 
 section('choosing the levels')
 {
-  const grid = await loadElevationGrid('terrain-1024')
+  const grid = await loadElevationGrid('terrain-4096')
 
   const one = buildContours(grid, { levels: [1000] })
   identical('one level, one entry', one.levels.length, 1)
@@ -358,68 +340,9 @@ section('choosing the levels')
   check('every 0 is rejected', threw)
 }
 
-section('the 10800 grid, and why it is data rather than a mesh')
-{
-  /* 0.0333° a cell instead of 0.05°, fetched from the z6 Terrarium tiles at the
-     earthGeoData vertex convention. It ships as a grid only: a surface from it
-     would be 2.8 GB of buffers, which is the whole reason it is here as
-     something to trace and sample rather than something to draw. */
-  const fine = await loadElevationGrid('terrain-10800')
-  identical('it decodes to one height per cell', fine.heights.length, 10800 * 5400)
-  identical('degrees per column', Number((360 / fine.width).toFixed(4)), 0.0333)
-
-  const coarse = await loadElevationGrid('terrain-7200')
-  check(
-    'finer sampling resolves a higher summit',
-    fine.data.stats.max > coarse.data.stats.max,
-    `${coarse.data.stats.max} m at 7200 -> ${fine.data.stats.max} m at 10800`,
-  )
-  check(
-    'and a deeper trench',
-    fine.data.stats.min < coarse.data.stats.min,
-    `${coarse.data.stats.min} m -> ${fine.data.stats.min} m`,
-  )
-
-  /* What finer sampling actually buys, measured on the one mountain everyone
-     knows the answer for. The summit is 8,849 m at 86.925E 27.988N, and it gets
-     closer with every step — but never arrives, because the summit is smaller
-     than a cell however fine the grid is. */
-  const everest = { lon: 86.925, lat: 27.9881, true: 8849 }
-  const trend = []
-  for (const id of ['terrain-1024', 'terrain-4096', 'terrain-7200', 'terrain-10800']) {
-    const grid = await loadElevationGrid(id)
-    trend.push({
-      id,
-      cell: 360 / grid.width,
-      at: samplerFromGrid(grid.data)(everest.lon, everest.lat),
-      max: grid.data.stats.max,
-    })
-  }
-
-  let rising = true
-  for (let index = 1; index < trend.length; index++) {
-    if (trend[index].at <= trend[index - 1].at) rising = false
-  }
-  check(
-    'every step finer samples Everest higher',
-    rising,
-    trend.map((entry) => `${entry.id.replace('terrain-', '')}: ${entry.at.toFixed(0)} m`).join('  '),
-  )
-  check(
-    'and the 10800 peak is the one that should be there',
-    Math.abs(trend[3].max - 7992) < 1 && trend[3].max > trend[2].max,
-    `${trend[2].max} m -> ${trend[3].max} m, at the summit's own cell`,
-  )
-  check(
-    'but even 3.7 km cells stop ~850 m short of the real summit',
-    trend[3].max < everest.true && everest.true - trend[3].max > 500,
-    `${trend[3].max} m of ${everest.true} m — the summit is smaller than a cell`,
-  )
-}
-
 section('everything else that ships')
 {
-  for (const id of ['terrain-4096', 'terrain-5120', 'terrain-7200', 'etopo2022-bed-4096']) {
+  for (const id of ['terrain-4096', 'etopo2022-bed-4096']) {
     const grid = await loadElevationGrid(id)
     identical(
       `${id} decodes to one height per cell`,
@@ -437,7 +360,7 @@ section('everything else that ships')
 
   const surface = await loadSurface('terrain-4096')
   identical(
-    'the biggest grid this package can still mesh builds',
+    'the 4096 grid builds a surface',
     surface.info.triangles,
     4096 * 2047 * 2,
   )
@@ -448,10 +371,6 @@ section('everything else that ships')
     reference['terrain-4096'].total,
   )
 }
-
-/* ══════════════════════════════════════════════════════════════════════════
-   the ground, not the height
-   ══════════════════════════════════════════════════════════════════════════ */
 
 section('land cover: a second raster')
 {
@@ -479,7 +398,7 @@ section('land cover: a second raster')
 
   let threw = null
   try {
-    landCoverFromData((await loadElevationGrid('terrain-1024')).data)
+    landCoverFromData((await loadElevationGrid('terrain-4096')).data)
   } catch (error) {
     threw = error.message
   }
@@ -598,11 +517,11 @@ section('the planet, painted')
 
 section('one surface, another raster')
 {
-  const small = await loadElevationGrid('terrain-1024')
+  const grid = await loadElevationGrid('terrain-4096')
   const cover = await loadLandCover('landcover-4096')
-  const colourOf = earthColours(small, cover)
+  const colourOf = earthColours(grid, cover)
 
-  const surface = buildSurface(small, { colourOf })
+  const surface = buildSurface(grid, { colourOf })
   let outOfRange = 0
   for (let index = 0; index < surface.colors.length; index++) {
     const value = surface.colors[index]
@@ -610,29 +529,20 @@ section('one surface, another raster')
   }
   identical('every vertex colour is a real colour', outOfRange, 0)
 
-  /* A 4096-wide class grid painting a 1024-wide surface: the lookup is scaled by
-     the ratio, so this has to land on the Sahara's sand just the same. */
-  const row = Math.round(((90 - 23) / 180) * (small.height - 1))
-  const column = Math.round(((10 + 180) / 360) * small.width) % small.width
-  const sandy = [...colourOf(small.heights[row * small.width + column], row, column)]
-  check('a 4096-wide class grid paints a 1024-wide surface', sandy[0] > 0.3,
+  /* Both rasters are 4096x2048, so a cell looks up the cell it belongs to. */
+  const row = Math.round(((90 - 23) / 180) * (grid.height - 1))
+  const column = Math.round(((10 + 180) / 360) * grid.width) % grid.width
+  const sandy = [...colourOf(grid.heights[row * grid.width + column], row, column)]
+  check('the class grid paints the cell it belongs to', sandy[0] > 0.3,
     sandy.map((channel) => channel.toFixed(2)).join(' '))
 
   /* And the seam column: buildSurface writes one column past the last meridian,
      and it must sample column 0's ground rather than run off the end. */
-  const seam = [...colourOf(small.heights[row * small.width], row, small.width)]
-  const first = [...colourOf(small.heights[row * small.width], row, 0)]
+  const seam = [...colourOf(grid.heights[row * grid.width], row, grid.width)]
+  const first = [...colourOf(grid.heights[row * grid.width], row, 0)]
   check('the seam column is column zero', seam.every((vertex, index) => vertex === first[index]))
 }
 
-/** Which level a vertex belongs to, found from the level offsets. */
-function findLevel(lines, vertex) {
-  const segment = vertex / 2
-  for (let index = lines.levels.length - 1; index >= 0; index--) {
-    if (segment >= lines.levels[index].offset) return lines.levels[index].level
-  }
-  return lines.levels[0].level
-}
 
 /* ── the tally ────────────────────────────────────────────────────────────── */
 
