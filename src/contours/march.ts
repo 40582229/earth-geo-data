@@ -1,60 +1,15 @@
 import type { GlobeView, Surface } from '../projection/projector.js'
-import { DEFAULT_VIEW, projector } from '../projection/projector.js'
+import { defaultView, projector } from '../projection/projector.js'
 import type { ElevationGrid } from '../elevation/grid.js'
 import { gridLayout } from '../elevation/layout.js'
 
-/* ════════════════════════════════════════════════════════════════════════════
-   contours — the height lines
+/* Marching squares, one cell at a time: the four corners give a min and a max,
+   so only the levels between them can cross. Cases 5 and 10 are ambiguous and
+   are resolved the same way as the reference implementation the shipped
+   segment counts came from. */
 
-   A contour is the set of points at one height. On the ground that is a closed
-   loop round a hill, a ring round a hollow, a line running down a valley and out
-   to sea. On a map it is the thin black line that makes a hill look like a hill.
-
-   There are two ways to get them. You can draw them once, into a file, at a fixed
-   set of heights. Or you can trace them out of the grid whenever you want them,
-   at whatever heights you want them. This does the second.
-
-   ── the algorithm is marching squares, and it is 16 cases ────────────────────
-
-   Take one cell — four corners — and ask of each corner: is it above this level,
-   or below? Four yes/no answers is 16 possibilities. Two of them (all above, all
-   below) produce nothing. The other fourteen produce one or two short segments
-   whose ends sit at an interpolated position along the cell's edges:
-
-         ┌─────3─────┐          bit 1 = top-left      edge 0 = top
-         │           │          bit 2 = top-right     edge 1 = right
-         0           1          bit 4 = bottom-right  edge 2 = bottom
-         │           │          bit 8 = bottom-left   edge 3 = left
-         └─────2─────┘
-
-   Interpolation, not rounding, is what makes the line smooth instead of a
-   staircase: the crossing point on an edge is where the height actually passes
-   through the level, not the nearest corner.
-
-   Two cases are ambiguous — 5 (top-left and bottom-right above) and 10 (the
-   other diagonal). The contour could cut either way, and the two ways are the
-   two saddles a hill's shoulder can have. They are resolved the same way here as
-   in the reference implementation that produced the shipped 838,605-segment
-   layer, so the two agree exactly: case 5 gives (left→top) + (right→bottom),
-   case 10 gives (top→right) + (bottom→left).
-
-   ── why one level list, not one level ───────────────────────────────────────
-
-   Tracing each level separately means walking the whole grid 16 times. Instead
-   each cell is looked at once: its four corners give a min and a max, and only
-   the levels that fall between them can possibly cross it. On real terrain that
-   is two or three levels per cell, not sixteen.
-   ════════════════════════════════════════════════════════════════════════════ */
-
-/**
- * The sixteen levels the shipped contour layer was drawn at, from −6000 m up.
- *
- * Deliberately uneven. Sea level to the abyssal plains is a long way and mostly
- * flat, so the undersea lines are spaced in thousands; land is where people look,
- * so it gets 250, 500, 1000, 1500 … and the last few hundred metres of the
- * Himalaya get their own line at 6000.
- */
-export const HYPSOMETRIC_LEVELS: readonly number[] = Object.freeze([
+/* The sixteen levels the shipped contour layer was drawn at, from −6000 m up. */
+export const hypsometricLevels: readonly number[] = Object.freeze([
   -500, -1000, -2000, -3000, -4000, -5000, -6000,
   250, 500, 1000, 1500, 2000, 3000, 4000, 5000, 6000,
 ])
@@ -62,7 +17,6 @@ export const HYPSOMETRIC_LEVELS: readonly number[] = Object.freeze([
 /** One traced level: where its segments start, and how many there are. */
 export type ContourLevel = {
   level: number
-  /** Index of this level's first segment within `positions`, in segments. */
   offset: number
   segments: number
 }
@@ -70,7 +24,6 @@ export type ContourLevel = {
 export type ContourInfo = {
   width: number
   height: number
-  /** How many levels were asked for — including any that crossed nothing. */
   levels: number
   segments: number
   vertices: number
@@ -87,39 +40,22 @@ export type ContourLines = {
    *  one level, start at `levels[i].offset * 6` floats and take
    *  `levels[i].segments * 6`. */
   positions: Float32Array
-  /** Ascending by `level`. Levels that crossed nothing are still here, with
-   *  `segments: 0` — so the list you get back is the list you asked for. */
   levels: ContourLevel[]
   segments: number
   info: ContourInfo
 }
 
 export type ContourOptions = {
-  /** Which heights to trace, in metres. Default: HYPSOMETRIC_LEVELS. */
+  /** Which heights to trace, in metres. Default: hypsometricLevels. */
   levels?: readonly number[]
-  /** Or: every N metres, from the grid's own lowest to its highest. Ignored when
-   *  `levels` is given. Ask for what you need — on a 4096 grid, `every: 100` is
-   *  179 levels, 17.2 million segments and 412 MB, against the default sixteen's
-   *  2.2 million and 53 MB. Doubling the levels doubles both, so an even spacing
-   *  over the whole planet is almost never what you want. */
   every?: number
-  /** The same view you gave the surface, so the lines land on it. */
   view?: Partial<GlobeView>
 }
 
 /** Vertices a level's buffer starts with; it doubles as needed. */
-const INITIAL_VERTICES = 8192
+const initialVertices = 8192
 
-/**
- * Trace the height lines out of a grid.
- *
- *   const lines = buildContours(grid)                       // the 16
- *   const lines = buildContours(grid, { every: 100 })       // every 100 m
- *   const lines = buildContours(grid, { levels: [1000] })   // one height
- *
- * Positions come out through the same projector the surface uses, so with the
- * same `view` the lines sit exactly on the terrain — on a sphere or on a plane.
- */
+/* Trace the height lines out of a grid. */
 export function buildContours(
   grid: ElevationGrid,
   options: ContourOptions = {},
@@ -130,7 +66,7 @@ export function buildContours(
      caller who has just built one should not have to say "the same one, again"
      or find their height lines hanging over a sphere of the default size. An
      explicit `options.view` still wins. */
-  const project = projector({ ...DEFAULT_VIEW, ...grid.view, ...options.view })
+  const project = projector({ ...defaultView, ...grid.view, ...options.view })
   const view = project.view
   const levels = resolveLevels(grid, options)
   const count = levels.length
@@ -150,8 +86,8 @@ export function buildContours(
   const capacities = new Int32Array(count)
   const cursors = new Int32Array(count)
   for (let i = 0; i < count; i++) {
-    buffers.push(new Float32Array(INITIAL_VERTICES * 3))
-    capacities[i] = INITIAL_VERTICES
+    buffers.push(new Float32Array(initialVertices * 3))
+    capacities[i] = initialVertices
   }
 
   const grow = (i: number): void => {
@@ -174,11 +110,6 @@ export function buildContours(
     const top = row * width
     const bottom = top + width
 
-    /* One column short: a cell needs two distinct grid columns, and the last
-       column of an equirectangular grid is one step short of a full turn. So the
-       sliver between the last column and column 0 — the antimeridian — has no
-       cell of its own. The shipped layer has the same gap; the seam is closed by
-       the geometry, not by a contour that runs along it. */
     for (let column = 0; column < width - 1; column++) {
       const h00 = heights[top + column]!
       const h01 = heights[top + column + 1]!
@@ -194,12 +125,6 @@ export function buildContours(
         const level = levels[i]!
         if (level > high) break
 
-        /* Where the level crosses each of the four edges, as a fraction from the
-           first corner named — top from top-left, right from top-right, bottom
-           from bottom-left, left from top-left. A flat edge (b === a) has no
-           crossing, and 0.5 is what the reference implementation chose for the
-           degenerate case: it places the vertex mid-edge rather than at a corner,
-           which keeps the segment away from the vertices that two cells share. */
         const tt = fraction(h00, h01, level)
         const tr = fraction(h01, h11, level)
         const tb = fraction(h10, h11, level)
@@ -283,10 +208,6 @@ export function buildContours(
     }
   }
 
-  /* ── join the levels into one buffer ─────────────────────────────────────
-     One Float32Array rather than sixteen is what a line-segment buffer wants:
-     one upload, one draw call, and the level offsets let a caller still draw a
-     single height if it wants to. */
   let vertices = 0
   for (let i = 0; i < count; i++) vertices += cursors[i]!
   const positions = new Float32Array(vertices * 3)
@@ -347,7 +268,7 @@ function resolveLevels(grid: ElevationGrid, options: ContourOptions): number[] {
   let levels: number[]
   if (options.levels) levels = [...options.levels]
   else if (options.every !== undefined) levels = levelsEvery(grid, options.every)
-  else levels = [...HYPSOMETRIC_LEVELS]
+  else levels = [...hypsometricLevels]
 
   if (!levels.length) {
     throw new Error(
@@ -377,8 +298,6 @@ function levelsEvery(grid: ElevationGrid, every: number): number[] {
   }
   const { min, max } = grid.data.range ?? scanRange(grid.heights)
   const levels: number[] = []
-  /* Counted in whole multiples rather than accumulated, so `every: 100` lands on
-     exactly -1000 rather than -999.9999999999998 after thirty additions. */
   const first = Math.ceil(min / every)
   const last = Math.floor(max / every)
   for (let step = first; step <= last; step++) levels.push(step * every)

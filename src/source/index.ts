@@ -6,28 +6,11 @@ import type {
 } from '../dataset/container.js'
 import { parseEarthGeoData } from '../dataset/container.js'
 import type { Reader } from './reader.js'
-import { DATA_ROOT, defaultReader, fetchReader, isNode, nodeReader } from './reader.js'
-
-/* ════════════════════════════════════════════════════════════════════════════
-   source — getting hold of a dataset
-
-   A loader is given one string and has to find the file. Two spellings, because
-   both are useful and neither is worth a second function:
-
-     'terrain-2048'                     an id, looked up in index.json
-     'terrain/terrain-2048.json'        a path, relative to the data root
-
-   The id is the better one. There is no directory listing over HTTP, so without
-   the manifest a consumer has to know every filename in advance — and a dataset
-   that moves between folders then breaks every page that loads it. The path is
-   there for when you want to be explicit, or to load a file that is not in the
-   manifest yet.
-   ════════════════════════════════════════════════════════════════════════════ */
+import { dataRoot, defaultReader, fetchReader, isNode, nodeReader } from './reader.js'
 
 export type SourceOptions = {
   /** Where the files are. Defaults to the `data/` folder beside this package. */
   base?: string | URL
-  /** Read one file's text yourself. Overrides `base`; used by the tests. */
   read?: Reader
   signal?: AbortSignal
   /** Check the file against the hash in the manifest. Costs a SHA-256 over the
@@ -103,15 +86,7 @@ export function isPath(source: string): boolean {
   return source.includes('/') || source.endsWith('.json')
 }
 
-/**
- * Open a dataset by id or by path.
- *
- *   await openDataset('etopo2022-bed-4096')
- *   await openDataset('etopo/etopo2022-bed-4096.json')
- *
- * Both give the same object. The file has already been decoded by the time you
- * have it — `at()` and `value()` are views onto one buffer, not copies.
- */
+/* Open a dataset by id or by path. */
 export async function openDataset(
   source: string,
   options: SourceOptions = {},
@@ -146,5 +121,5 @@ async function verify(path: string, text: string, expected: string): Promise<voi
   }
 }
 
-export { DATA_ROOT, defaultReader, fetchReader, isNode, nodeReader }
+export { dataRoot, defaultReader, fetchReader, isNode, nodeReader }
 export type { Reader }

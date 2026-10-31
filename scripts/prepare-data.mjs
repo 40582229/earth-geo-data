@@ -1,25 +1,7 @@
 #!/usr/bin/env node
-/* ════════════════════════════════════════════════════════════════════════════
-   prepare-data.mjs — fill data/ with the grids, and describe what is in it
-
-   Two kinds of dataset end up in the package:
-
-     · the elevation grids, copied byte for byte out of a source folder that
-       holds an earthGeoData manifest (the learning project's public data)
-     · everything else — the land-cover grid — fetched straight into data/ by
-       its own script, `scripts/fetch-landcover.py`
-
-   Neither order is wrong, and neither script has to know about the other. This
-   one copies what the source offers, then walks data/ and writes a manifest
-   entry for every dataset file it finds — hashing each one from disk, and
-   reading the envelope of any file the source did not describe. The manifest
-   therefore describes the folder as it actually is, which is exactly what
-   `test/run.mjs` checks it against.
-
-     npm run prepare-data                                  (the sibling folder)
-     EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data
-     node scripts/prepare-data.mjs /path/to/earthGeoData
-   ════════════════════════════════════════════════════════════════════════════ */
+/* Fills data/ with the grids and writes a manifest describing exactly what is
+   there: the elevation grids are copied from a source folder, the land cover is
+   fetched by scripts/fetch-landcover.py, and everything on disk gets an entry. */
 
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'

@@ -1,4 +1,4 @@
-export { EarthGeoData, parseEarthGeoData, base64ToBytes, FORMAT } from './container.js'
+export { EarthGeoData, parseEarthGeoData, base64ToBytes, formatId } from './container.js'
 
 export type {
   DataSource,

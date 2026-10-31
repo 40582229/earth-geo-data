@@ -1,24 +1,11 @@
 #!/usr/bin/env python3
 """fetch-landcover.py — MODIS IGBP land cover, turned into a class grid
 
-The elevation grids say how high the ground is. They cannot say whether it is
-sand or jungle, because the Sahara and the Amazon are both low. That is a second
-raster, and this is where it comes from.
-
-NASA GIBS serves the MODIS MCD12Q1 IGBP classification as a WMS layer. The
-service paints each class with a *display* colour — open shrubland comes out
-cream, urban comes out pure red — so the colours themselves are useless for a
-planet. What is useful is that the service renders with nearest-neighbour, so
-each output pixel is exactly one of the eighteen colours in its colormap. That
-makes the reverse mapping exact: colour -> class code, no thresholds, no
-guessing at the edges.
-
-So this writes class codes, 1..17 plus 17 for water, and nothing else. What the
-planet looks like is decided in TypeScript, by a palette in src/colour.
+NASA GIBS renders the MCD12Q1 classification with nearest-neighbour, so every
+output pixel is exactly one of its eighteen colormap colours. That makes
+colour -> class an exact reverse lookup rather than a threshold guess.
 
     python3 scripts/fetch-landcover.py [--width 4096] [--height 2048]
-
-Writes data/landcover/landcover-<width>.json and prints what it found.
 """
 
 import argparse
@@ -146,7 +133,7 @@ def main() -> None:
     url = (
         f"{WMS}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS={LAYER}"
         f"&CRS=EPSG:4326&BBOX=-90,-180,90,180"
-        f"&WIDTH={args.width}&HEIGHT={args.height}&FORMAT=image/png&TIME={TIME}"
+        f"&WIDTH={args.width}&HEIGHT={args.height}&formatId=image/png&TIME={TIME}"
     )
     print(f"fetching {args.width}x{args.height} …")
     image = Image.open(BytesIO(fetch(url)))

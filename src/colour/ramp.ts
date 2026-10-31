@@ -1,46 +1,6 @@
 import type { Color3 } from './types.js'
 
-/* ════════════════════════════════════════════════════════════════════════════
-   elevation — the colour of a height
-
-   This is the only thing in the project that decides what the planet looks like,
-   and it is 450 numbers and a lookup table. It lives here rather than in the
-   lesson file so that anything drawing the globe — the demo, a test, a second
-   scene — gets the same planet, and so that regenerating the ramp has exactly
-   one place to write to.
-
-   Regenerate with:  node tools/build-elevation-ramp.mjs --write
-   ════════════════════════════════════════════════════════════════════════════ */
-
-/* ── the elevation ramp ─────────────────────────────────────────────────────
-   450 anchors, taken from the real distribution of the planet rather than
-   from evenly spaced heights. Measured on earthGeoData/terrain/terrain-4096.json, weighted
-   by surface area, the whole Earth sits in a few narrow bands:
-
-       -6000 .. -4000 m   36.7% of the surface   <- the abyssal plains
-       -4000 .. -2000 m   22.1%
-       -2000 ..  -200 m    7.1%
-        -200 ..     0 m    5.5%                 <- the shelf, and it is steep
-           0 ..   200 m    8.3%                 <- the lowlands
-         200 ..   500 m    8.5%
-         500 ..  2000 m    9.6%
-        2000 ..  9000 m    1.5%                 <- everything above 2 km
-
-   So the anchors bunch where the surface is. The median gap between two anchors
-   is about 25 m of height, and that is the whole point: the colour change per
-   metre of height is the only thing drawing a ridge or a valley on the globe.
-
-   Two things are deliberate and worth not "fixing":
-
-     1. -4 m is teal and 0 m is sand. That step IS the coastline. Nothing else
-        draws a coast — no line, no outline, no shader. Soften it and the
-        continents dissolve into the sea.
-     2. the deep ocean changes colour faster than it used to. A flat deep blue
-        renders the largest surface on the planet as one featureless field.
-
-   Regenerate with:  node tools/build-elevation-ramp.mjs --write
-   ─────────────────────────────────────────────────────────────────────────── */
-export const ELEVATION_RAMP: { metres: number; rgb: Color3 }[] = [
+export const elevationRamp: { metres: number; rgb: Color3 }[] = [
   { metres: -11000, rgb: [0.006, 0.009, 0.054] }, // the deepest the ramp goes; Challenger Deep is -10,935
   { metres: -10850, rgb: [0.006, 0.01, 0.056] },
   { metres: -10675, rgb: [0.007, 0.01, 0.059] },
@@ -493,64 +453,28 @@ export const ELEVATION_RAMP: { metres: number; rgb: Color3 }[] = [
   { metres:   9000, rgb: [1, 1, 1] }, // the top of the ramp; Everest is 8,849
 ]
 
-/**
- * The ramp, baked into a lookup table before the globe is built.
- *
- * 450 anchors are free in a text file but expensive here: 8.4 million vertices
- * each scanning up to 450 anchors is about 1.6 billion comparisons before the
- * first frame. So the ramp is read once, into a table, and every vertex after
- * that is one multiply, one floor and a lerp.
- *
- * It is the same split as BufferAttribute against the geometry: the ramp is the
- * description, the table is the shape the running code uses. It also means the
- * ramp can be as detailed as you like — adding anchors does not slow the lookup.
- *
- * There are TWO tables, one for water and one for land, and that is not tidiness.
- * A single table spanning -11000..9000 spaces its entries ~5 m apart, so the
- * 4 m between the teal at -4 m and the sand at 0 m falls *between* two entries
- * and gets blended across both. The coastline — the one hard edge on the whole
- * globe — came out 46% softer. Two tables put an entry exactly on each side of
- * it, so the step stays a step.
- */
-const ELEVATION_LUT_SIZE = 4096
+/* The ramp, baked into a lookup table before the globe is built. */
+const elevationLutSize = 4096
 
 // where the ramp crosses the waterline. findIndex stops at the first anchor at
 // or above 0 m, so the one before it is the last water anchor (-4 m).
-const FIRST_LAND_ANCHOR = ELEVATION_RAMP.findIndex((anchor) => anchor.metres >= 0)
-const LAST_WATER_METRES = ELEVATION_RAMP[FIRST_LAND_ANCHOR - 1].metres
-const FIRST_LAND_METRES = ELEVATION_RAMP[FIRST_LAND_ANCHOR].metres
-const LOWEST_METRES = ELEVATION_RAMP[0].metres
-const HIGHEST_METRES = ELEVATION_RAMP[ELEVATION_RAMP.length - 1].metres
-const WATER_LUT = bakeElevationLut(LOWEST_METRES, LAST_WATER_METRES)
-const LAND_LUT = bakeElevationLut(FIRST_LAND_METRES, HIGHEST_METRES)
-/**
- * The ramp, baked into a lookup table before the globe is built.
- *
- * 450 anchors are free in a text file but expensive here: 8.4 million vertices
- * each scanning up to 450 anchors is about 1.6 billion comparisons before the
- * first frame. So the ramp is read once, into a table, and every vertex after
- * that is one multiply, one floor and a lerp.
- *
- * It is the same split as BufferAttribute against the geometry: the ramp is the
- * description, the table is the shape the running code uses. It also means the
- * ramp can be as detailed as you like — adding anchors does not slow the lookup.
- *
- * There are TWO tables, one for water and one for land, and that is not tidiness.
- * A single table spanning -11000..9000 spaces its entries ~5 m apart, so the
- * 4 m between the teal at -4 m and the sand at 0 m falls *between* two entries
- * and gets blended across both. The coastline — the one hard edge on the whole
- * globe — came out 46% softer. Two tables put an entry exactly on each side of
- * it, so the step stays a step.
- */
+const firstLandAnchor = elevationRamp.findIndex((anchor) => anchor.metres >= 0)
+const lastWaterMetres = elevationRamp[firstLandAnchor - 1].metres
+const firstLandMetres = elevationRamp[firstLandAnchor].metres
+const lowestMetres = elevationRamp[0].metres
+const highestMetres = elevationRamp[elevationRamp.length - 1].metres
+const waterLut = bakeElevationLut(lowestMetres, lastWaterMetres)
+const landLut = bakeElevationLut(firstLandMetres, highestMetres)
+/* The ramp, baked into a lookup table before the globe is built. */
 
 export function srgbToLinear(value: number): number {
   return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
 }
 
 function bakeElevationLut(from: number, to: number): Float32Array {
-  const table = new Float32Array(ELEVATION_LUT_SIZE * 3)
-  const step = (to - from) / (ELEVATION_LUT_SIZE - 1)
-  for (let i = 0; i < ELEVATION_LUT_SIZE; i++) {
+  const table = new Float32Array(elevationLutSize * 3)
+  const step = (to - from) / (elevationLutSize - 1)
+  for (let i = 0; i < elevationLutSize; i++) {
     const [red, green, blue] = sampleRamp(from + i * step)
     table[i * 3] = srgbToLinear(red)
     table[i * 3 + 1] = srgbToLinear(green)
@@ -561,13 +485,13 @@ function bakeElevationLut(from: number, to: number): Float32Array {
 
 /** Walk the anchors: what the ramp literally says at one height. */
 export function sampleRamp(metres: number): [number, number, number] {
-  let low = ELEVATION_RAMP[0]
-  let high = ELEVATION_RAMP[ELEVATION_RAMP.length - 1]
+  let low = elevationRamp[0]
+  let high = elevationRamp[elevationRamp.length - 1]
 
-  for (let i = 1; i < ELEVATION_RAMP.length; i++) {
-    if (metres <= ELEVATION_RAMP[i].metres) {
-      low = ELEVATION_RAMP[i - 1]
-      high = ELEVATION_RAMP[i]
+  for (let i = 1; i < elevationRamp.length; i++) {
+    if (metres <= elevationRamp[i].metres) {
+      low = elevationRamp[i - 1]
+      high = elevationRamp[i]
       break
     }
   }
@@ -586,26 +510,19 @@ export function sampleRamp(metres: number): [number, number, number] {
 // one triple, reused. A fresh array per vertex would be 8.4 million of them.
 const scratchColor: [number, number, number] = [0, 0, 0]
 
-/**
- * The colour for a height, out of the baked table. O(1) whatever the ramp does.
- *
- * Note the return type: ONE triple, reused for every call. It is a Float32Array
- * rather than a tuple so the nine million reads below do not each allocate, and
- * that makes copying the three numbers out — `const [r, g, b] = elevationColor(m)` —
- * the caller's job before asking for the next one.
- */
+/* The colour for a height, out of the baked table. */
 export function elevationColor(metres: number): Color3 {
   const underwater = metres < 0
-  const table = underwater ? WATER_LUT : LAND_LUT
-  const from = underwater ? LOWEST_METRES : FIRST_LAND_METRES
-  const to = underwater ? LAST_WATER_METRES : HIGHEST_METRES
+  const table = underwater ? waterLut : landLut
+  const from = underwater ? lowestMetres : firstLandMetres
+  const to = underwater ? lastWaterMetres : highestMetres
 
   // anything below -4 m is water and anything from 0 m up is land, so the
   // clamp is doing real work for the last few metres on either side
-  const exact = ((metres - from) / (to - from)) * (ELEVATION_LUT_SIZE - 1)
-  const position = exact < 0 ? 0 : exact > ELEVATION_LUT_SIZE - 1 ? ELEVATION_LUT_SIZE - 1 : exact
+  const exact = ((metres - from) / (to - from)) * (elevationLutSize - 1)
+  const position = exact < 0 ? 0 : exact > elevationLutSize - 1 ? elevationLutSize - 1 : exact
   const low = Math.floor(position)
-  const high = low < ELEVATION_LUT_SIZE - 1 ? low + 1 : low
+  const high = low < elevationLutSize - 1 ? low + 1 : low
   const t = position - low
   const a = low * 3
   const b = high * 3

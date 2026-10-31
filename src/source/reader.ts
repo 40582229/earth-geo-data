@@ -1,30 +1,9 @@
-/* ════════════════════════════════════════════════════════════════════════════
-   reader — how a dataset's text is fetched, in Node and in a browser
-
-   The data ships inside this package, so in Node there is nothing to configure:
-   the folder sits at `../../data/` relative to this file, and `openDataset('terrain-2048')`
-   reads from disk.
-
-   A browser cannot read files, and cannot see inside node_modules either. There
-   the data has to be served from somewhere, so `base` is the URL it is served
-   from — usually a copy of this package's `data/` folder in the app's public
-   directory:
-
-     const grid = await loadElevationGrid('terrain-2048', { base: '/earth-geo/' })
-
-   Both are the same one function — "give me the text of this path" — which is
-   the whole of the abstraction. Nothing here knows what a grid is.
-   ════════════════════════════════════════════════════════════════════════════ */
 
 /** Read one file's text. Overridable, which is how the tests run without a disk. */
 export type Reader = (path: string, signal?: AbortSignal) => Promise<string>
 
-/** The folder the data ships in, resolved from this file's compiled location.
- *
- *  `dist/source/reader.js` → `<package>/data/`. Resolved rather than hardcoded to
- *  a working directory, because a package is installed somewhere unexpected by
- *  definition. */
-export const DATA_ROOT = new URL('../../data/', import.meta.url)
+/* The folder the data ships in, resolved from this file's compiled location. */
+export const dataRoot = new URL('../../data/', import.meta.url)
 
 export function isNode(): boolean {
   return typeof process !== 'undefined' && typeof process.versions?.node === 'string'
@@ -36,15 +15,7 @@ function isHttp(base: string | URL | undefined): boolean {
   return text.startsWith('http://') || text.startsWith('https://')
 }
 
-/**
- * A URL from a string that might be absolute, or relative to the page.
- *
- * `new URL('/data/')` throws — an absolute *path* is not an absolute *URL*, and
- * the browser is the only one who knows what it is relative to. So a relative
- * base is resolved against `location`, which is the page doing the importing.
- * There is no sensible answer in Node, so it says so rather than guessing at a
- * working directory.
- */
+/* A URL from a string that might be absolute, or relative to the page. */
 function absolute(raw: string): URL {
   try {
     return new URL(raw)
@@ -66,7 +37,7 @@ function asDirectory(url: URL): URL {
 }
 
 /** Read from disk. `base` is a folder path or a file: URL. */
-export function nodeReader(base: string | URL = DATA_ROOT): Reader {
+export function nodeReader(base: string | URL = dataRoot): Reader {
   return async (path) => {
     const { readFile } = await import('node:fs/promises')
     let root: URL
@@ -95,17 +66,10 @@ export function fetchReader(base: string | URL): Reader {
   }
 }
 
-/**
- * The reader to use when the caller did not name one.
- *
- * Node gets the data folder beside this package. A browser gets `fetch` against
- * whatever `base` it was given, and a clear error if it was given nothing —
- * guessing at a path is how a stack trace ends up nine frames deep in a URL
- * parser instead of saying "the data has to be served from somewhere".
- */
+/* The reader to use when the caller did not name one. */
 export function defaultReader(base?: string | URL): Reader {
   if (isHttp(base)) return fetchReader(base as string | URL)
-  if (isNode()) return nodeReader(base ?? DATA_ROOT)
+  if (isNode()) return nodeReader(base ?? dataRoot)
   if (base === undefined) {
     throw new Error(
       'earthGeoData: no base to read from. In a browser the data has to be served ' +

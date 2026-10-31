@@ -14,8 +14,8 @@ import { fileURLToPath } from 'node:url'
 
 import {
   annualMeanCelsius, buildContours, buildSurface, datasetEntry, datasetIndex,
-  earthColour, earthColours, EARTH_RADIUS_M, elevationColor, HYPSOMETRIC_LEVELS,
-  LAND_COVER, landCoverColor, landCoverFromData, loadElevationGrid, loadLandCover,
+  earthColour, earthColours, earthRadiusM, elevationColor, hypsometricLevels,
+  landCover, landCoverColor, landCoverFromData, loadElevationGrid, loadLandCover,
   loadSurface, samplerFromGrid, snowLineMetres,
 } from '../dist/index.js'
 
@@ -216,7 +216,7 @@ const plane = await loadSurface('terrain-1024', { view: { surface: 'plane' } })
    marching_squares), run over the same grids at the same sixteen levels. These
    are exact: every one of the sixteen cases, both saddles included, has to
    agree or the number moves. */
-const REFERENCE = {
+const reference = {
   'terrain-1024': {
     total: 293084,
     counts: [22169, 18369, 22523, 35969, 48405, 37837, 5782, 33473, 29087, 18396, 11130, 5710, 1900, 1310, 994, 30],
@@ -235,27 +235,27 @@ const REFERENCE = {
  *  levels, 838,605 segments. Not identical to terrain-2048 — that grid is the
  *  same DEM subsampled slightly differently — but within a tenth of a percent,
  *  which is the check that the tracer is looking at the same planet. */
-const SHIPPED_LAYER_SEGMENTS = 838605
+const shippedLayerSegments = 838605
 
 section('height lines')
 {
   const grid = await loadElevationGrid('terrain-2048')
   const [lines, ms] = time('contours', () => buildContours(grid))
 
-  identical('levels traced', lines.levels.length, HYPSOMETRIC_LEVELS.length)
-  identical('total segments', lines.segments, REFERENCE['terrain-2048'].total)
+  identical('levels traced', lines.levels.length, hypsometricLevels.length)
+  identical('total segments', lines.segments, reference['terrain-2048'].total)
   check(
     'the shipped layer agrees to a tenth of a percent',
-    Math.abs(lines.segments - SHIPPED_LAYER_SEGMENTS) / SHIPPED_LAYER_SEGMENTS < 0.001,
-    `${lines.segments} vs ${SHIPPED_LAYER_SEGMENTS} segments`,
+    Math.abs(lines.segments - shippedLayerSegments) / shippedLayerSegments < 0.001,
+    `${lines.segments} vs ${shippedLayerSegments} segments`,
   )
   console.log(`        (traced in ${ms.toFixed(0)} ms)`)
 
-  const expected = [...HYPSOMETRIC_LEVELS].sort((a, b) => a - b)
+  const expected = [...hypsometricLevels].sort((a, b) => a - b)
   let mismatches = 0
   for (let i = 0; i < expected.length; i++) {
     const level = lines.levels[i]
-    const want = REFERENCE['terrain-2048'].counts[HYPSOMETRIC_LEVELS.indexOf(expected[i])]
+    const want = reference['terrain-2048'].counts[hypsometricLevels.indexOf(expected[i])]
     if (level.level !== expected[i] || level.segments !== want) {
       mismatches++
       console.log(`        level ${expected[i]}: got ${level.segments}, expected ${want}`)
@@ -276,7 +276,7 @@ section('the lines sit on the height they claim')
   const grid = await loadElevationGrid('terrain-1024')
   const flat = buildContours(grid, { view: { surface: 'plane' } })
   const perDegree = 6 / 180
-  const perMetre = (6 * 30) / EARTH_RADIUS_M
+  const perMetre = (6 * 30) / earthRadiusM
   const sample = samplerFromGrid(grid.data)
 
   let worst = 0
@@ -311,7 +311,7 @@ section('the shape does not change the lines')
   identical('and agree level for level', round.levels.map((l) => l.segments).join(','), flat.levels.map((l) => l.segments).join(','))
 
   const radius = 6
-  const relief = 30 / EARTH_RADIUS_M
+  const relief = 30 / earthRadiusM
   let off = 0
   for (let v = 0; v < round.positions.length / 3; v += 1013) {
     const level = findLevel(round, v)
@@ -437,7 +437,7 @@ section('everything else that ships')
   identical(
     'a surface can be handed straight to the tracer',
     fromSurface.segments,
-    REFERENCE['terrain-4096'].total,
+    reference['terrain-4096'].total,
   )
 }
 
@@ -453,7 +453,7 @@ section('land cover: a second raster')
   identical('one class per cell', cover.classes.length, 4096 * 2048)
 
   const known = new Uint8Array(256)
-  for (const entry of LAND_COVER) known[entry.id] = 1
+  for (const entry of landCover) known[entry.id] = 1
 
   const counts = new Uint32Array(256)
   let unknown = 0
@@ -480,9 +480,9 @@ section('land cover: a second raster')
 
 section('the palette')
 {
-  identical('seventeen IGBP classes', LAND_COVER.length, 17)
-  check('numbered 1 to 17', LAND_COVER.every((entry, i) => entry.id === i + 1))
-  check('every channel is 0..1', LAND_COVER.every((entry) => entry.rgb.every((v) => v >= 0 && v <= 1)))
+  identical('seventeen IGBP classes', landCover.length, 17)
+  check('numbered 1 to 17', landCover.every((entry, i) => entry.id === i + 1))
+  check('every channel is 0..1', landCover.every((entry) => entry.rgb.every((v) => v >= 0 && v <= 1)))
 
   const snow = [...landCoverColor(15)]
   check(
