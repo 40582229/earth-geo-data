@@ -31,16 +31,21 @@ geometry.setAttribute('position', new BufferAttribute(lines.positions, 3))  // L
 
 Nine grids, 345 MB of JSON, 259 MB of payload.
 
-The grids are **not in this repository**. They are generated, not written by
-hand, and 345 MB is past what GitHub will take in one file. `npm run
-prepare-data` copies them in from a local source folder and writes `data/index.json`
-to match:
+The grids are **not in this repository**. They are generated rather than written
+by hand, and the largest is past what GitHub will take in a single file.
 
 ```bash
-EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data
+EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data   # the elevation grids
+python3 scripts/fetch-landcover.py                           # the land-cover grid
 ```
 
-The table below is what you get once that has run.
+`prepare-data` copies the elevation grids out of a folder shaped like this
+package's own `data/` — an `earthGeoData` manifest and the files it lists — while
+`fetch-landcover.py` builds its grid from NASA GIBS (needs Pillow). Run them in
+either order. The manifest is rebuilt from whatever is on disk and hashed as it
+is, and `npm test` checks the two against each other.
+
+The table below is what you get once both have run.
 
 | id | shape | cell | what it is |
 |---|---|---|---|

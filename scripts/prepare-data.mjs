@@ -1,26 +1,35 @@
 #!/usr/bin/env node
 /* ════════════════════════════════════════════════════════════════════════════
-   prepare-data.mjs — copy the elevation datasets in, and write the manifest
+   prepare-data.mjs — fill data/ with the grids, and describe what is in it
 
-   The package ships seven grids and nothing else. They are copied, byte for
-   byte, out of the learning project's public data folder, and the manifest is
-   rebuilt around them — same entries, same hashes, filtered down.
+   Two kinds of dataset end up in the package:
 
-   Copying rather than moving, so the learning project keeps working and the two
-   can be compared. The copies are checked against the manifest hashes by
-   `test/run.mjs`, which is what makes "byte for byte" a claim rather than a hope.
+     · the elevation grids, copied byte for byte out of a source folder that
+       holds an earthGeoData manifest (the learning project's public data)
+     · everything else — the land-cover grid — fetched straight into data/ by
+       its own script, `scripts/fetch-landcover.py`
 
-     node scripts/prepare-data.mjs
-     EARTHGEO_SOURCE=/path/to/earthGeoData node scripts/prepare-data.mjs
+   Neither order is wrong, and neither script has to know about the other. This
+   one copies what the source offers, then walks data/ and writes a manifest
+   entry for every dataset file it finds — hashing each one from disk, and
+   reading the envelope of any file the source did not describe. The manifest
+   therefore describes the folder as it actually is, which is exactly what
+   `test/run.mjs` checks it against.
+
+     npm run prepare-data                                  (the sibling folder)
+     EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data
+     node scripts/prepare-data.mjs /path/to/earthGeoData
    ════════════════════════════════════════════════════════════════════════════ */
 
+import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const pkg = join(here, '..')
+const out = join(pkg, 'data')
 
 /* Where the source grids live is a property of the machine, not of the repo:
    the data is not committed. Take it from the argument, then the environment,
@@ -41,13 +50,12 @@ if (!source) {
   process.exit(1)
 }
 
-const out = join(pkg, 'data')
+const index = JSON.parse(await readFile(join(source, 'index.json'), 'utf8'))
 
 /** The seven grids: the five Terrarium resolutions, and ETOPO's two surfaces. */
 const isElevation = (entry) =>
   entry.path.startsWith('terrain/terrain-') || entry.path.startsWith('etopo/')
 
-const index = JSON.parse(await readFile(join(source, 'index.json'), 'utf8'))
 const elevation = index.datasets.filter(isElevation)
 
 if (!elevation.length) {
@@ -55,44 +63,82 @@ if (!elevation.length) {
   process.exit(1)
 }
 
-/* Everything that is not elevation — the land-cover grid, and anything else
-   fetched from elsewhere — is not in the learning project's manifest, so this
-   script must not be the thing that deletes it. Entries already in this
-   package's own manifest are kept as they are, provided the file is still on
-   disk; the rest of the manifest is rebuilt around them. */
-let existing = { datasets: [] }
-try {
-  existing = JSON.parse(await readFile(join(out, 'index.json'), 'utf8'))
-} catch {
-  // first run: there is nothing to preserve
-}
-const kept = existing.datasets.filter(
-  (entry) => !isElevation(entry) && existsSync(join(out, entry.path)),
-)
-
-const datasets = [...elevation, ...kept]
-
 await mkdir(out, { recursive: true })
+
+for (const entry of elevation) {
+  const to = join(out, entry.path)
+  await mkdir(dirname(to), { recursive: true })
+  await copyFile(join(source, entry.path), to)
+}
+
+/** Every dataset file in data/, relative to it and sorted. index.json is not one. */
+async function datasetsIn(dir, prefix = '') {
+  const found = []
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name
+    if (entry.isDirectory()) found.push(...await datasetsIn(join(dir, entry.name), path))
+    else if (entry.name.endsWith('.json') && path !== 'index.json') found.push(path)
+  }
+  return found.sort()
+}
+
+/* An entry for a file the source manifest did not describe. Everything in it is
+   read out of the envelope the file carries — the same fields the source uses,
+   so both kinds of entry sit in one list without a special case. */
+function describe(path, envelope, bytes, sha256) {
+  const grid = envelope.grid ?? {}
+  const from = envelope.source ?? {}
+
+  return {
+    id: envelope.id,
+    path,
+    kind: envelope.kind,
+    title: envelope.title,
+    width: grid.width,
+    height: grid.height,
+    unit: grid.unit,
+    bytes,
+    sourceBytes: envelope.byteLength,
+    sha256,
+    licence: from.licence,
+    attribution: from.attribution,
+    retrieved: from.retrieved,
+    stats: envelope.stats,
+  }
+}
+
+const fromSource = new Map(elevation.map((entry) => [entry.path, entry]))
+const onDisk = await datasetsIn(out)
+const datasets = []
+
+for (const path of onDisk) {
+  const body = await readFile(join(out, path))
+  const sha256 = createHash('sha256').update(body).digest('hex')
+  const entry = fromSource.get(path)
+
+  datasets.push(
+    entry
+      ? { ...entry, bytes: body.length, sha256 }
+      : describe(path, JSON.parse(body.toString('utf8')), body.length, sha256),
+  )
+}
+
+/* Elevation first, in the order the source listed it; anything else after. */
+const rank = new Map(elevation.map((entry, at) => [entry.path, at]))
+datasets.sort((a, b) => {
+  const left = rank.get(a.path) ?? Number.MAX_SAFE_INTEGER
+  const right = rank.get(b.path) ?? Number.MAX_SAFE_INTEGER
+  return left - right || onDisk.indexOf(a.path) - onDisk.indexOf(b.path)
+})
 
 let bytes = 0
 let payload = 0
-let records = 0
 const licences = {}
 const byKind = {}
 
 for (const entry of datasets) {
-  /* Only the elevation grids are copied. Everything else was fetched straight
-     into this package by its own script and is already where it belongs. */
-  if (isElevation(entry)) {
-    const from = join(source, entry.path)
-    const to = join(out, entry.path)
-    await mkdir(dirname(to), { recursive: true })
-    await copyFile(from, to)
-  }
-
   bytes += entry.bytes
-  payload += entry.sourceBytes
-  records += entry.records ?? 0
+  payload += entry.sourceBytes ?? 0
   byKind[entry.kind] = (byKind[entry.kind] ?? 0) + 1
   ;(licences[entry.licence] ??= []).push(entry.id)
 
@@ -110,7 +156,7 @@ const manifest = {
     datasets: datasets.length,
     bytes,
     megabytes: Number((bytes / 1e6).toFixed(1)),
-    records,
+    records: 0,
   },
   licences,
   byKind,
