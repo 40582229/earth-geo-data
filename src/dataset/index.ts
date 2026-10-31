@@ -1,4 +1,4 @@
-export { EarthGeoData, parseEarthGeoData, base64ToBytes, formatId } from './container.js'
+export { EarthGeoData, parseEarthGeoData, base64ToBytes, formatId } from './container/index.js'
 
 export type {
   DataSource,
@@ -12,4 +12,4 @@ export type {
   PartHeader,
   PolygonHeader,
   RingHeader,
-} from './container.js'
+} from './container/index.js'

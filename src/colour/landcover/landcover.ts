@@ -1,16 +1,9 @@
-import type { Color3 } from './types.js'
-import { srgbToLinear } from './ramp.js'
+import type { Color3 } from '../types.js'
+import { srgbToLinear } from '../ramp/index.js'
+import type { LandCoverClass } from './landcover.types.js'
 
 /* IGBP class codes, the scheme MODIS MCD12Q1 uses; the colours are chosen for a
    planet seen from orbit, not sampled from the product's own display palette. */
-
-/** One land-cover class. `id` is the IGBP code as MODIS stores it. */
-export type LandCoverClass = {
-  id: number
-  key: string
-  name: string
-  rgb: Color3
-}
 
 /** The seventeen IGBP classes, with the colour each one gets on the globe. */
 export const landCover: readonly LandCoverClass[] = [

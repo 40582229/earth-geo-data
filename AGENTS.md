@@ -86,7 +86,7 @@ JSDoc: **one line per exported declaration, at most**. If the type already says
 it, say nothing. `/** The width of the grid in cells. */` above `width: number`
 is noise.
 
-The whole of `src/` currently carries about 180 comment lines in 2,300. Keep it
+The whole of `src/` currently carries about 180 comment lines in 2,400. Keep it
 that way; a change that doubles it will be sent back.
 
 ## Layout
@@ -105,15 +105,57 @@ Each folder has an `index.ts` barrel; import through it, not through the files
 behind it. Every folder is also a published subpath — `earth-geo-data/colour`
 and so on — so the barrels are public API, not tidiness.
 
+### One folder per file
+
+Every file with code in it — a function, a constant, a class — sits in a folder
+named after itself, with its types, its tests and a barrel around it:
+
+```
+src/colour/ramp/
+  index.ts        the barrel: the only way in
+  ramp.ts         the code
+  ramp.types.ts   the types it owns
+  ramp.test.ts    the checks that fail when it changes
+```
+
+- **`ramp.types.ts` holds the file's own exported types** — its interfaces and
+  type aliases, and no values at all. A module that declares no types of its own
+  has no `.types.ts`: `src/elevation/layout/` is three files, not four, because
+  everything `gridLayout` speaks is a type it imports. An empty file is not
+  part of the pattern.
+- **`ramp.test.ts` sits beside what it tests**, and never reaches `dist/`:
+  `tsconfig.json` excludes `*.test.ts`, so a test cannot be published by
+  accident.
+- **`index.ts` re-exports the module and its types** — `export { ramp } from
+  './ramp.js'`, `export type { RampAnchor } from './ramp.types.js'` — so the
+  folder presents one edge to the folder above, the way every folder here does.
+  Import through it, never through `ramp.ts`.
+
+Two files are not modules and get no folder: `index.ts`, which is the barrel
+itself, and a folder-level `types.ts`, which holds the type two or more modules
+share — `src/colour/types.ts` keeps `Color3` because both `ramp` and
+`landcover` speak it. A type that belongs to one module goes in that module's
+`.types.ts` instead.
+
+That is the shape of the tree, and it stays that shape: every module under
+`src/` is a folder, `src/source/index.ts` is a barrel and nothing else, and each
+check lives in the `.test.ts` of the module it covers. **Nothing new is added
+flat.**
+
 ## Commands
 
 ```bash
 npm install          # dev dependencies only; there are no runtime ones
-npm run build        # tsc -> dist/
-npm run typecheck    # tsc --noEmit
-npm test             # build, then 82 checks against the real data
+npm run build        # tsc -> dist/, with *.test.ts left out
+npm run typecheck    # tsc --noEmit over src/ and the tests beside it
+npm test             # builds dist/ and .test-dist/, then 107 checks on the data
 npm run prepare-data # fill data/ from a source folder (see below)
 ```
+
+`npm test` compiles twice: `dist/` without the tests, which is what ships, and
+`.test-dist/` with them, which is what runs. `node --test` takes one file at a
+time here — almost every test opens the 69 MB grid, and the surface tests hold
+half a gigabyte each.
 
 ## Constraints
 
@@ -176,5 +218,5 @@ The human marks it ready, reads the review, and merges it in the browser.
 npm run typecheck && npm test
 ```
 
-All 82 checks pass, `data/` holds the four grids and nothing else, and the diff
+All 107 checks pass, `data/` holds the four grids and nothing else, and the diff
 contains no banner comments.

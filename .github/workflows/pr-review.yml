@@ -65,7 +65,7 @@ jobs:
 
           # The snapshot is the same for every pull request, so it goes first and caches.
           : > repository-snapshot.txt
-          git ls-files src test scripts AGENTS.md package.json tsconfig.json \
+          git ls-files src scripts AGENTS.md package.json tsconfig.json tsconfig.test.json \
             | while IFS= read -r repository_path; do
                 [ -f "$repository_path" ] || continue
                 printf '\n=== %s ===\n' "$repository_path" >> repository-snapshot.txt

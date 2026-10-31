@@ -5,6 +5,6 @@ export {
   earthRadiusM,
   defaultView,
   defaultLiftM,
-} from './projector.js'
+} from './projector/index.js'
 
-export type { GlobeView, Projector, ElevationSampler, Surface } from './projector.js'
+export type { GlobeView, Projector, ElevationSampler, Surface } from './projector/index.js'

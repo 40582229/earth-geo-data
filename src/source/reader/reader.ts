@@ -1,9 +1,7 @@
-
-/** Read one file's text. Overridable, which is how the tests run without a disk. */
-export type Reader = (path: string, signal?: AbortSignal) => Promise<string>
+import type { Reader } from './reader.types.js'
 
 /* The folder the data ships in, resolved from this file's compiled location. */
-export const dataRoot = new URL('../../data/', import.meta.url)
+export const dataRoot = new URL('../../../data/', import.meta.url)
 
 export const isNode = (): boolean => {
   return typeof process !== 'undefined' && typeof process.versions?.node === 'string'

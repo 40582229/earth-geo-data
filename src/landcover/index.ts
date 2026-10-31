@@ -1,7 +1,7 @@
-export { loadLandCover, landCoverFromData, classAt } from './grid.js'
-export type { LandCoverGrid } from './grid.js'
+export { loadLandCover, landCoverFromData, classAt } from './grid/index.js'
+export type { LandCoverGrid } from './grid/index.js'
 
 export {
   earthColour, earthColours, annualMeanCelsius, snowLineMetres,
-} from './earth.js'
-export type { EarthColourOptions } from './earth.js'
+} from './earth/index.js'
+export type { EarthColourOptions } from './earth/index.js'

@@ -1,15 +1,7 @@
-import type { EarthGeoData } from '../dataset/container.js'
-import { openDataset } from '../source/index.js'
-import type { SourceOptions } from '../source/index.js'
-
-/** A decoded land-cover grid: one class code per cell, in row-major order, row 0
- *  at the north pole — the same layout as every elevation grid here. */
-export type LandCoverGrid = {
-  data: EarthGeoData
-  width: number
-  height: number
-  classes: ArrayLike<number>
-}
+import type { EarthGeoData } from '../../dataset/container/index.js'
+import { openDataset } from '../../source/index.js'
+import type { SourceOptions } from '../../source/index.js'
+import type { LandCoverGrid } from './grid.types.js'
 
 /** The class code at a cell. Out-of-range cells throw rather than wrap: a colour
  *  read one row off is a coastline in the wrong place, which is exactly the kind

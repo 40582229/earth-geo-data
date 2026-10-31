@@ -1,4 +1,5 @@
-import type { EarthGeoData } from '../dataset/container.js'
+import type { EarthGeoData } from '../../dataset/container/index.js'
+import type { ElevationSampler, GlobeView, Projector } from './projector.types.js'
 
 /* lon/lat -> xyz, once, so no two layers can disagree about where anything is:
 
@@ -13,18 +14,6 @@ import type { EarthGeoData } from '../dataset/container.js'
  *  (equator); a globe 0.3% out of round is not a globe anyone can see. */
 export const earthRadiusM = 6371000
 
-/** Which shape a projection produces. */
-export type Surface = 'sphere' | 'plane'
-
-/** How the surface is placed in your scene. Passed to every loader. */
-export type GlobeView = {
-  radius: number
-  heightExaggeration: number
-  longitudeOffset: number
-  /** 'sphere' for a globe, 'plane' for a flat 2:1 map. Default 'sphere'. */
-  surface: Surface
-}
-
 /* The rotation lesson 06 uses: a globe of radius 6, relief at 30x, turned so that 0°E — Africa and Europe —… */
 export const defaultView: GlobeView = {
   radius: 6,
@@ -38,20 +27,6 @@ export const defaultLiftM = 500
 
 /** Degrees → radians, once, so the hot loops are one multiply. */
 const radians = Math.PI / 180
-
-/* A projection, with the view's arithmetic done once instead of per vertex. */
-export type Projector = {
-  readonly view: GlobeView
-  /** How far out the projection pushes a point at this elevation, in scene
-   *  units — distance from the centre on a sphere, height above the plane on a
-   *  plane. Negative below sea level, which is honest: a trench is below it. */
-  radius(metres: number): number
-  /** Write the xyz of one lon/lat into `out` at `at`, `at+1`, `at+2`, and hand
-   *  back the radius it used — so a caller can measure the band it produced
-   *  without a second pass over the vertices with a hypot() each. */
-  write(target: Float32Array, offset: number, longitude: number, latitude: number, metres?: number): number
-  spin(longitude: number): number
-}
 
 export const projector = (view: Partial<GlobeView> = {}): Projector => {
   const resolvedView: GlobeView = { ...defaultView, ...view }
@@ -117,9 +92,6 @@ export const projector = (view: Partial<GlobeView> = {}): Projector => {
     },
   }
 }
-
-/* A function that answers "how high is the ground here?" in metres. */
-export type ElevationSampler = (longitude: number, latitude: number) => number
 
 /* A sampler that reads a grid dataset, bilinearly. */
 export const samplerFromGrid = (data: EarthGeoData): ElevationSampler => {
