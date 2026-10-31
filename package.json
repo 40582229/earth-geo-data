@@ -1,0 +1,38 @@
+{
+  "name": "earth-geo-data",
+  "version": "0.1.0",
+  "description": "Elevation data and dependency-free loaders: a grid becomes a globe or a flat map, and its height lines come out as vectors.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "git+https://github.com/40582229/earth-geo-data.git" },
+  "homepage": "https://github.com/40582229/earth-geo-data#readme",
+  "bugs": { "url": "https://github.com/40582229/earth-geo-data/issues" },
+  "engines": { "node": ">=18" },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./dataset": { "types": "./dist/dataset/index.d.ts", "default": "./dist/dataset/index.js" },
+    "./projection": { "types": "./dist/projection/index.d.ts", "default": "./dist/projection/index.js" },
+    "./colour": { "types": "./dist/colour/index.d.ts", "default": "./dist/colour/index.js" },
+    "./elevation": { "types": "./dist/elevation/index.d.ts", "default": "./dist/elevation/index.js" },
+    "./contours": { "types": "./dist/contours/index.d.ts", "default": "./dist/contours/index.js" },
+    "./landcover": { "types": "./dist/landcover/index.d.ts", "default": "./dist/landcover/index.js" },
+    "./source": { "types": "./dist/source/index.d.ts", "default": "./dist/source/index.js" },
+    "./data/*": "./data/*",
+    "./package.json": "./package.json"
+  },
+  "files": ["dist", "data", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node test/run.mjs",
+    "prepare-data": "node scripts/prepare-data.mjs",
+    "prepublishOnly": "npm run build && node test/run.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,618 @@
+import type { Color3 } from './types.js'
+
+/* ════════════════════════════════════════════════════════════════════════════
+   elevation — the colour of a height
+
+   This is the only thing in the project that decides what the planet looks like,
+   and it is 450 numbers and a lookup table. It lives here rather than in the
+   lesson file so that anything drawing the globe — the demo, a test, a second
+   scene — gets the same planet, and so that regenerating the ramp has exactly
+   one place to write to.
+
+   Regenerate with:  node tools/build-elevation-ramp.mjs --write
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── the elevation ramp ─────────────────────────────────────────────────────
+   450 anchors, taken from the real distribution of the planet rather than
+   from evenly spaced heights. Measured on earthGeoData/terrain/terrain-4096.json, weighted
+   by surface area, the whole Earth sits in a few narrow bands:
+
+       -6000 .. -4000 m   36.7% of the surface   <- the abyssal plains
+       -4000 .. -2000 m   22.1%
+       -2000 ..  -200 m    7.1%
+        -200 ..     0 m    5.5%                 <- the shelf, and it is steep
+           0 ..   200 m    8.3%                 <- the lowlands
+         200 ..   500 m    8.5%
+         500 ..  2000 m    9.6%
+        2000 ..  9000 m    1.5%                 <- everything above 2 km
+
+   So the anchors bunch where the surface is. The median gap between two anchors
+   is about 25 m of height, and that is the whole point: the colour change per
+   metre of height is the only thing drawing a ridge or a valley on the globe.
+
+   Two things are deliberate and worth not "fixing":
+
+     1. -4 m is teal and 0 m is sand. That step IS the coastline. Nothing else
+        draws a coast — no line, no outline, no shader. Soften it and the
+        continents dissolve into the sea.
+     2. the deep ocean changes colour faster than it used to. A flat deep blue
+        renders the largest surface on the planet as one featureless field.
+
+   Regenerate with:  node tools/build-elevation-ramp.mjs --write
+   ─────────────────────────────────────────────────────────────────────────── */
+export const ELEVATION_RAMP: { metres: number; rgb: Color3 }[] = [
+  { metres: -11000, rgb: [0.006, 0.009, 0.054] }, // the deepest the ramp goes; Challenger Deep is -10,935
+  { metres: -10850, rgb: [0.006, 0.01, 0.056] },
+  { metres: -10675, rgb: [0.007, 0.01, 0.059] },
+  { metres: -10525, rgb: [0.007, 0.011, 0.061] },
+  { metres: -10375, rgb: [0.007, 0.012, 0.063] },
+  { metres: -10225, rgb: [0.007, 0.012, 0.066] },
+  { metres: -10050, rgb: [0.008, 0.013, 0.068] },
+  { metres:  -9900, rgb: [0.008, 0.014, 0.07] },
+  { metres:  -9750, rgb: [0.008, 0.015, 0.073] },
+  { metres:  -9575, rgb: [0.009, 0.015, 0.075] },
+  { metres:  -9425, rgb: [0.009, 0.016, 0.078] },
+  { metres:  -9275, rgb: [0.009, 0.017, 0.08] },
+  { metres:  -9125, rgb: [0.01, 0.018, 0.082] },
+  { metres:  -8950, rgb: [0.01, 0.019, 0.085] },
+  { metres:  -8800, rgb: [0.01, 0.019, 0.087] },
+  { metres:  -8650, rgb: [0.011, 0.02, 0.089] },
+  { metres:  -8475, rgb: [0.011, 0.021, 0.092] },
+  { metres:  -8325, rgb: [0.011, 0.022, 0.094] },
+  { metres:  -8175, rgb: [0.012, 0.023, 0.096] },
+  { metres:  -8025, rgb: [0.012, 0.024, 0.098] },
+  { metres:  -7850, rgb: [0.012, 0.025, 0.101] },
+  { metres:  -7700, rgb: [0.013, 0.026, 0.103] },
+  { metres:  -7550, rgb: [0.013, 0.027, 0.105] },
+  { metres:  -7375, rgb: [0.013, 0.028, 0.108] },
+  { metres:  -7225, rgb: [0.014, 0.028, 0.11] },
+  { metres:  -7075, rgb: [0.014, 0.029, 0.111] },
+  { metres:  -6925, rgb: [0.014, 0.03, 0.113] },
+  { metres:  -6750, rgb: [0.014, 0.031, 0.116] },
+  { metres:  -6600, rgb: [0.015, 0.031, 0.117] },
+  { metres:  -6450, rgb: [0.015, 0.032, 0.119] },
+  { metres:  -6275, rgb: [0.015, 0.033, 0.121] },
+  { metres:  -6125, rgb: [0.016, 0.034, 0.123] },
+  { metres:  -6000, rgb: [0.016, 0.035, 0.125] }, // start of the abyssal plains — below here is only 0.8% of the planet
+  { metres:  -5975, rgb: [0.016, 0.035, 0.127] },
+  { metres:  -5950, rgb: [0.016, 0.036, 0.128] },
+  { metres:  -5900, rgb: [0.017, 0.038, 0.132] },
+  { metres:  -5875, rgb: [0.017, 0.038, 0.134] },
+  { metres:  -5850, rgb: [0.017, 0.039, 0.135] },
+  { metres:  -5825, rgb: [0.018, 0.04, 0.137] },
+  { metres:  -5800, rgb: [0.018, 0.041, 0.139] },
+  { metres:  -5775, rgb: [0.018, 0.042, 0.141] },
+  { metres:  -5750, rgb: [0.019, 0.042, 0.143] },
+  { metres:  -5725, rgb: [0.019, 0.043, 0.144] },
+  { metres:  -5700, rgb: [0.019, 0.044, 0.146] },
+  { metres:  -5650, rgb: [0.02, 0.046, 0.15] },
+  { metres:  -5625, rgb: [0.02, 0.047, 0.151] },
+  { metres:  -5600, rgb: [0.02, 0.047, 0.153] },
+  { metres:  -5575, rgb: [0.02, 0.048, 0.155] },
+  { metres:  -5550, rgb: [0.021, 0.049, 0.157] },
+  { metres:  -5525, rgb: [0.021, 0.05, 0.158] },
+  { metres:  -5500, rgb: [0.021, 0.051, 0.16] },
+  { metres:  -5475, rgb: [0.022, 0.052, 0.162] },
+  { metres:  -5450, rgb: [0.022, 0.053, 0.164] },
+  { metres:  -5400, rgb: [0.022, 0.055, 0.167] },
+  { metres:  -5375, rgb: [0.023, 0.056, 0.169] },
+  { metres:  -5350, rgb: [0.023, 0.056, 0.17] },
+  { metres:  -5325, rgb: [0.023, 0.057, 0.172] },
+  { metres:  -5300, rgb: [0.024, 0.058, 0.174] },
+  { metres:  -5275, rgb: [0.024, 0.059, 0.176] },
+  { metres:  -5250, rgb: [0.024, 0.06, 0.177] },
+  { metres:  -5225, rgb: [0.025, 0.061, 0.179] },
+  { metres:  -5200, rgb: [0.025, 0.062, 0.181] },
+  { metres:  -5175, rgb: [0.025, 0.063, 0.183] },
+  { metres:  -5125, rgb: [0.026, 0.065, 0.186] },
+  { metres:  -5100, rgb: [0.026, 0.066, 0.188] },
+  { metres:  -5075, rgb: [0.026, 0.067, 0.189] },
+  { metres:  -5050, rgb: [0.026, 0.068, 0.191] },
+  { metres:  -5025, rgb: [0.027, 0.069, 0.193] },
+  { metres:  -5000, rgb: [0.027, 0.07, 0.195] },
+  { metres:  -4975, rgb: [0.027, 0.071, 0.196] },
+  { metres:  -4950, rgb: [0.028, 0.072, 0.198] },
+  { metres:  -4925, rgb: [0.028, 0.073, 0.2] },
+  { metres:  -4875, rgb: [0.029, 0.075, 0.203] },
+  { metres:  -4850, rgb: [0.029, 0.076, 0.205] },
+  { metres:  -4825, rgb: [0.029, 0.077, 0.206] },
+  { metres:  -4800, rgb: [0.029, 0.078, 0.208] },
+  { metres:  -4775, rgb: [0.03, 0.079, 0.21] },
+  { metres:  -4750, rgb: [0.03, 0.08, 0.212] },
+  { metres:  -4725, rgb: [0.03, 0.081, 0.213] },
+  { metres:  -4700, rgb: [0.031, 0.082, 0.215] },
+  { metres:  -4675, rgb: [0.031, 0.083, 0.217] },
+  { metres:  -4625, rgb: [0.031, 0.085, 0.22] },
+  { metres:  -4600, rgb: [0.032, 0.086, 0.222] },
+  { metres:  -4575, rgb: [0.032, 0.087, 0.223] },
+  { metres:  -4550, rgb: [0.032, 0.088, 0.225] },
+  { metres:  -4525, rgb: [0.033, 0.09, 0.227] },
+  { metres:  -4500, rgb: [0.033, 0.091, 0.228] },
+  { metres:  -4475, rgb: [0.033, 0.092, 0.23] },
+  { metres:  -4450, rgb: [0.034, 0.093, 0.232] },
+  { metres:  -4425, rgb: [0.034, 0.094, 0.234] },
+  { metres:  -4375, rgb: [0.035, 0.096, 0.237] },
+  { metres:  -4350, rgb: [0.035, 0.097, 0.239] },
+  { metres:  -4325, rgb: [0.035, 0.098, 0.24] },
+  { metres:  -4300, rgb: [0.035, 0.1, 0.242] },
+  { metres:  -4275, rgb: [0.036, 0.101, 0.244] },
+  { metres:  -4250, rgb: [0.036, 0.102, 0.245] },
+  { metres:  -4225, rgb: [0.036, 0.103, 0.247] },
+  { metres:  -4200, rgb: [0.037, 0.104, 0.249] },
+  { metres:  -4175, rgb: [0.037, 0.105, 0.25] },
+  { metres:  -4125, rgb: [0.038, 0.108, 0.254] },
+  { metres:  -4100, rgb: [0.038, 0.109, 0.255] },
+  { metres:  -4075, rgb: [0.038, 0.11, 0.257] },
+  { metres:  -4050, rgb: [0.039, 0.111, 0.259] },
+  { metres:  -4025, rgb: [0.039, 0.113, 0.26] },
+  { metres:  -4000, rgb: [0.039, 0.114, 0.262] }, // mid-ocean ridge flanks; the busiest band on Earth
+  { metres:  -3975, rgb: [0.04, 0.115, 0.263] },
+  { metres:  -3950, rgb: [0.04, 0.116, 0.265] },
+  { metres:  -3925, rgb: [0.04, 0.117, 0.266] },
+  { metres:  -3900, rgb: [0.041, 0.118, 0.267] },
+  { metres:  -3850, rgb: [0.041, 0.121, 0.27] },
+  { metres:  -3825, rgb: [0.042, 0.122, 0.271] },
+  { metres:  -3800, rgb: [0.042, 0.123, 0.273] },
+  { metres:  -3775, rgb: [0.042, 0.124, 0.274] },
+  { metres:  -3750, rgb: [0.043, 0.125, 0.275] },
+  { metres:  -3725, rgb: [0.043, 0.126, 0.277] },
+  { metres:  -3700, rgb: [0.043, 0.127, 0.278] },
+  { metres:  -3675, rgb: [0.044, 0.129, 0.279] },
+  { metres:  -3650, rgb: [0.044, 0.13, 0.28] },
+  { metres:  -3600, rgb: [0.045, 0.132, 0.283] },
+  { metres:  -3575, rgb: [0.045, 0.133, 0.284] },
+  { metres:  -3550, rgb: [0.046, 0.135, 0.286] },
+  { metres:  -3525, rgb: [0.046, 0.136, 0.287] },
+  { metres:  -3500, rgb: [0.046, 0.137, 0.288] },
+  { metres:  -3475, rgb: [0.047, 0.138, 0.29] },
+  { metres:  -3450, rgb: [0.047, 0.139, 0.291] },
+  { metres:  -3425, rgb: [0.047, 0.141, 0.292] },
+  { metres:  -3400, rgb: [0.048, 0.142, 0.294] },
+  { metres:  -3350, rgb: [0.048, 0.144, 0.296] },
+  { metres:  -3325, rgb: [0.049, 0.145, 0.297] },
+  { metres:  -3300, rgb: [0.049, 0.147, 0.299] },
+  { metres:  -3275, rgb: [0.05, 0.148, 0.3] },
+  { metres:  -3250, rgb: [0.05, 0.149, 0.301] },
+  { metres:  -3225, rgb: [0.05, 0.15, 0.303] },
+  { metres:  -3200, rgb: [0.051, 0.152, 0.304] },
+  { metres:  -3175, rgb: [0.051, 0.153, 0.305] },
+  { metres:  -3150, rgb: [0.051, 0.154, 0.307] },
+  { metres:  -3100, rgb: [0.052, 0.157, 0.309] },
+  { metres:  -3075, rgb: [0.053, 0.158, 0.31] },
+  { metres:  -3050, rgb: [0.053, 0.159, 0.312] },
+  { metres:  -3025, rgb: [0.053, 0.16, 0.313] },
+  { metres:  -3000, rgb: [0.054, 0.162, 0.314] },
+  { metres:  -2975, rgb: [0.054, 0.163, 0.316] },
+  { metres:  -2950, rgb: [0.055, 0.164, 0.317] },
+  { metres:  -2925, rgb: [0.055, 0.166, 0.318] },
+  { metres:  -2900, rgb: [0.055, 0.167, 0.319] },
+  { metres:  -2850, rgb: [0.056, 0.17, 0.322] },
+  { metres:  -2825, rgb: [0.057, 0.171, 0.323] },
+  { metres:  -2800, rgb: [0.057, 0.172, 0.325] },
+  { metres:  -2775, rgb: [0.057, 0.173, 0.326] },
+  { metres:  -2750, rgb: [0.058, 0.175, 0.327] },
+  { metres:  -2725, rgb: [0.058, 0.176, 0.328] },
+  { metres:  -2700, rgb: [0.059, 0.177, 0.329] },
+  { metres:  -2675, rgb: [0.059, 0.179, 0.33] },
+  { metres:  -2650, rgb: [0.059, 0.18, 0.331] },
+  { metres:  -2600, rgb: [0.06, 0.182, 0.333] },
+  { metres:  -2575, rgb: [0.061, 0.184, 0.334] },
+  { metres:  -2550, rgb: [0.061, 0.185, 0.335] },
+  { metres:  -2525, rgb: [0.061, 0.186, 0.335] },
+  { metres:  -2500, rgb: [0.062, 0.188, 0.336] },
+  { metres:  -2475, rgb: [0.062, 0.189, 0.337] },
+  { metres:  -2450, rgb: [0.063, 0.19, 0.338] },
+  { metres:  -2425, rgb: [0.063, 0.191, 0.339] },
+  { metres:  -2400, rgb: [0.063, 0.193, 0.34] },
+  { metres:  -2375, rgb: [0.064, 0.194, 0.341] },
+  { metres:  -2325, rgb: [0.065, 0.197, 0.343] },
+  { metres:  -2300, rgb: [0.065, 0.198, 0.344] },
+  { metres:  -2275, rgb: [0.066, 0.199, 0.345] },
+  { metres:  -2250, rgb: [0.066, 0.201, 0.346] },
+  { metres:  -2225, rgb: [0.066, 0.202, 0.347] },
+  { metres:  -2200, rgb: [0.067, 0.203, 0.348] },
+  { metres:  -2175, rgb: [0.067, 0.205, 0.349] },
+  { metres:  -2150, rgb: [0.068, 0.206, 0.35] },
+  { metres:  -2125, rgb: [0.068, 0.207, 0.35] },
+  { metres:  -2075, rgb: [0.069, 0.21, 0.352] },
+  { metres:  -2050, rgb: [0.069, 0.211, 0.353] },
+  { metres:  -2025, rgb: [0.07, 0.213, 0.354] },
+  { metres:  -2000, rgb: [0.07, 0.214, 0.355] }, // continental rise
+  { metres:  -1985, rgb: [0.071, 0.215, 0.356] },
+  { metres:  -1965, rgb: [0.071, 0.217, 0.357] },
+  { metres:  -1945, rgb: [0.072, 0.218, 0.358] },
+  { metres:  -1930, rgb: [0.072, 0.22, 0.359] },
+  { metres:  -1910, rgb: [0.073, 0.221, 0.36] },
+  { metres:  -1890, rgb: [0.073, 0.223, 0.361] },
+  { metres:  -1875, rgb: [0.074, 0.224, 0.362] },
+  { metres:  -1855, rgb: [0.074, 0.226, 0.363] },
+  { metres:  -1840, rgb: [0.075, 0.227, 0.364] },
+  { metres:  -1820, rgb: [0.075, 0.229, 0.365] },
+  { metres:  -1800, rgb: [0.076, 0.231, 0.366] },
+  { metres:  -1785, rgb: [0.076, 0.232, 0.367] },
+  { metres:  -1765, rgb: [0.077, 0.233, 0.368] },
+  { metres:  -1745, rgb: [0.077, 0.235, 0.369] },
+  { metres:  -1730, rgb: [0.078, 0.236, 0.37] },
+  { metres:  -1710, rgb: [0.078, 0.238, 0.371] },
+  { metres:  -1695, rgb: [0.079, 0.239, 0.372] },
+  { metres:  -1675, rgb: [0.079, 0.241, 0.373] },
+  { metres:  -1655, rgb: [0.08, 0.242, 0.374] },
+  { metres:  -1640, rgb: [0.08, 0.243, 0.375] },
+  { metres:  -1620, rgb: [0.08, 0.244, 0.376] },
+  { metres:  -1600, rgb: [0.081, 0.246, 0.377] },
+  { metres:  -1585, rgb: [0.081, 0.247, 0.377] },
+  { metres:  -1565, rgb: [0.082, 0.248, 0.378] },
+  { metres:  -1550, rgb: [0.082, 0.249, 0.379] },
+  { metres:  -1530, rgb: [0.082, 0.25, 0.38] },
+  { metres:  -1510, rgb: [0.083, 0.251, 0.381] },
+  { metres:  -1495, rgb: [0.083, 0.252, 0.381] },
+  { metres:  -1475, rgb: [0.084, 0.254, 0.382] },
+  { metres:  -1455, rgb: [0.084, 0.255, 0.383] },
+  { metres:  -1440, rgb: [0.084, 0.256, 0.384] },
+  { metres:  -1420, rgb: [0.085, 0.257, 0.385] },
+  { metres:  -1405, rgb: [0.085, 0.258, 0.386] },
+  { metres:  -1385, rgb: [0.086, 0.259, 0.387] },
+  { metres:  -1365, rgb: [0.086, 0.261, 0.387] },
+  { metres:  -1350, rgb: [0.086, 0.262, 0.388] },
+  { metres:  -1330, rgb: [0.087, 0.263, 0.389] },
+  { metres:  -1310, rgb: [0.087, 0.264, 0.39] },
+  { metres:  -1295, rgb: [0.088, 0.265, 0.391] },
+  { metres:  -1275, rgb: [0.088, 0.267, 0.392] },
+  { metres:  -1260, rgb: [0.088, 0.268, 0.392] },
+  { metres:  -1240, rgb: [0.089, 0.269, 0.393] },
+  { metres:  -1220, rgb: [0.089, 0.27, 0.394] },
+  { metres:  -1205, rgb: [0.09, 0.271, 0.395] },
+  { metres:  -1185, rgb: [0.09, 0.272, 0.396] },
+  { metres:  -1165, rgb: [0.091, 0.274, 0.397] },
+  { metres:  -1150, rgb: [0.091, 0.275, 0.397] },
+  { metres:  -1130, rgb: [0.091, 0.276, 0.398] },
+  { metres:  -1115, rgb: [0.092, 0.277, 0.399] },
+  { metres:  -1095, rgb: [0.092, 0.278, 0.4] },
+  { metres:  -1075, rgb: [0.093, 0.28, 0.401] },
+  { metres:  -1060, rgb: [0.093, 0.281, 0.401] },
+  { metres:  -1040, rgb: [0.094, 0.282, 0.402] },
+  { metres:  -1020, rgb: [0.094, 0.283, 0.403] },
+  { metres:  -1005, rgb: [0.094, 0.284, 0.404] },
+  { metres:   -990, rgb: [0.095, 0.286, 0.405] },
+  { metres:   -980, rgb: [0.095, 0.287, 0.406] },
+  { metres:   -965, rgb: [0.097, 0.29, 0.408] },
+  { metres:   -955, rgb: [0.098, 0.293, 0.409] },
+  { metres:   -945, rgb: [0.099, 0.295, 0.41] },
+  { metres:   -930, rgb: [0.1, 0.298, 0.412] },
+  { metres:   -920, rgb: [0.101, 0.3, 0.413] },
+  { metres:   -910, rgb: [0.102, 0.302, 0.415] },
+  { metres:   -895, rgb: [0.103, 0.305, 0.417] },
+  { metres:   -885, rgb: [0.104, 0.308, 0.418] },
+  { metres:   -875, rgb: [0.105, 0.31, 0.419] },
+  { metres:   -860, rgb: [0.106, 0.313, 0.421] },
+  { metres:   -850, rgb: [0.107, 0.315, 0.422] },
+  { metres:   -840, rgb: [0.108, 0.317, 0.423] },
+  { metres:   -825, rgb: [0.11, 0.32, 0.425] },
+  { metres:   -815, rgb: [0.111, 0.323, 0.426] },
+  { metres:   -800, rgb: [0.112, 0.326, 0.428] },
+  { metres:   -790, rgb: [0.113, 0.328, 0.43] },
+  { metres:   -780, rgb: [0.114, 0.33, 0.431] },
+  { metres:   -765, rgb: [0.116, 0.333, 0.433] },
+  { metres:   -755, rgb: [0.117, 0.335, 0.434] },
+  { metres:   -745, rgb: [0.118, 0.338, 0.435] },
+  { metres:   -730, rgb: [0.119, 0.341, 0.437] },
+  { metres:   -720, rgb: [0.12, 0.343, 0.438] },
+  { metres:   -710, rgb: [0.121, 0.345, 0.439] },
+  { metres:   -695, rgb: [0.123, 0.348, 0.441] },
+  { metres:   -685, rgb: [0.124, 0.35, 0.442] },
+  { metres:   -675, rgb: [0.125, 0.353, 0.443] },
+  { metres:   -660, rgb: [0.126, 0.356, 0.445] },
+  { metres:   -650, rgb: [0.127, 0.358, 0.446] },
+  { metres:   -635, rgb: [0.129, 0.361, 0.448] },
+  { metres:   -625, rgb: [0.13, 0.363, 0.449] },
+  { metres:   -615, rgb: [0.131, 0.365, 0.45] },
+  { metres:   -600, rgb: [0.133, 0.369, 0.452] },
+  { metres:   -590, rgb: [0.134, 0.371, 0.453] },
+  { metres:   -580, rgb: [0.135, 0.373, 0.454] },
+  { metres:   -565, rgb: [0.136, 0.376, 0.456] },
+  { metres:   -555, rgb: [0.138, 0.38, 0.458] },
+  { metres:   -545, rgb: [0.139, 0.383, 0.46] },
+  { metres:   -530, rgb: [0.141, 0.388, 0.463] },
+  { metres:   -520, rgb: [0.143, 0.391, 0.465] },
+  { metres:   -510, rgb: [0.144, 0.394, 0.467] },
+  { metres:   -495, rgb: [0.146, 0.399, 0.47] },
+  { metres:   -485, rgb: [0.147, 0.403, 0.472] },
+  { metres:   -470, rgb: [0.15, 0.407, 0.475] },
+  { metres:   -460, rgb: [0.151, 0.411, 0.477] },
+  { metres:   -450, rgb: [0.152, 0.414, 0.479] },
+  { metres:   -435, rgb: [0.155, 0.419, 0.482] },
+  { metres:   -425, rgb: [0.156, 0.422, 0.484] },
+  { metres:   -415, rgb: [0.158, 0.426, 0.486] },
+  { metres:   -400, rgb: [0.16, 0.431, 0.489] },
+  { metres:   -390, rgb: [0.161, 0.434, 0.491] },
+  { metres:   -380, rgb: [0.163, 0.437, 0.493] },
+  { metres:   -365, rgb: [0.165, 0.442, 0.496] },
+  { metres:   -355, rgb: [0.167, 0.445, 0.498] },
+  { metres:   -345, rgb: [0.168, 0.449, 0.499] },
+  { metres:   -330, rgb: [0.17, 0.454, 0.502] },
+  { metres:   -320, rgb: [0.172, 0.457, 0.504] },
+  { metres:   -305, rgb: [0.174, 0.462, 0.507] },
+  { metres:   -296, rgb: [0.176, 0.465, 0.509] },
+  { metres:   -284, rgb: [0.177, 0.469, 0.511] },
+  { metres:   -272, rgb: [0.179, 0.473, 0.513] },
+  { metres:   -260, rgb: [0.181, 0.477, 0.516] },
+  { metres:   -248, rgb: [0.184, 0.485, 0.52] },
+  { metres:   -237, rgb: [0.186, 0.493, 0.525] },
+  { metres:   -225, rgb: [0.189, 0.501, 0.529] },
+  { metres:   -213, rgb: [0.191, 0.509, 0.534] },
+  { metres:   -201, rgb: [0.194, 0.517, 0.539] },
+  { metres:   -192, rgb: [0.197, 0.525, 0.544] },
+  { metres:   -184, rgb: [0.199, 0.533, 0.548] },
+  { metres:   -175, rgb: [0.202, 0.541, 0.553] },
+  { metres:   -167, rgb: [0.204, 0.549, 0.557] },
+  { metres:   -158, rgb: [0.207, 0.557, 0.562] },
+  { metres:   -149, rgb: [0.21, 0.566, 0.566] },
+  { metres:   -141, rgb: [0.212, 0.571, 0.568] },
+  { metres:   -132, rgb: [0.215, 0.575, 0.568] },
+  { metres:   -124, rgb: [0.218, 0.58, 0.569] },
+  { metres:   -115, rgb: [0.221, 0.584, 0.57] },
+  { metres:   -107, rgb: [0.223, 0.588, 0.57] },
+  { metres:    -98, rgb: [0.227, 0.602, 0.577] },
+  { metres:    -89, rgb: [0.231, 0.616, 0.584] },
+  { metres:    -81, rgb: [0.234, 0.629, 0.59] },
+  { metres:    -72, rgb: [0.238, 0.644, 0.596] },
+  { metres:    -64, rgb: [0.241, 0.657, 0.602] },
+  { metres:    -55, rgb: [0.244, 0.671, 0.607] },
+  { metres:    -47, rgb: [0.248, 0.685, 0.612] },
+  { metres:    -40, rgb: [0.251, 0.699, 0.617] },
+  { metres:    -33, rgb: [0.254, 0.713, 0.621] },
+  { metres:    -25, rgb: [0.258, 0.728, 0.625] },
+  { metres:    -18, rgb: [0.262, 0.741, 0.628] },
+  { metres:    -11, rgb: [0.273, 0.746, 0.628] },
+  { metres:     -4, rgb: [0.284, 0.752, 0.624] }, // the last of the water — one anchor later and there is no coastline
+  { metres:      0, rgb: [0.72, 0.64, 0.42] }, // the beach. the jump from -4 to 0 IS the coastline
+  { metres:     16, rgb: [0.642, 0.623, 0.273] },
+  { metres:     32, rgb: [0.533, 0.565, 0.247] },
+  { metres:     48, rgb: [0.45, 0.517, 0.233] },
+  { metres:     64, rgb: [0.391, 0.48, 0.221] },
+  { metres:     80, rgb: [0.375, 0.471, 0.219] },
+  { metres:     96, rgb: [0.36, 0.462, 0.217] },
+  { metres:    112, rgb: [0.345, 0.453, 0.215] },
+  { metres:    128, rgb: [0.331, 0.444, 0.213] },
+  { metres:    143, rgb: [0.318, 0.436, 0.211] },
+  { metres:    159, rgb: [0.305, 0.427, 0.209] },
+  { metres:    175, rgb: [0.298, 0.423, 0.208] },
+  { metres:    191, rgb: [0.301, 0.424, 0.209] },
+  { metres:    208, rgb: [0.304, 0.425, 0.21] },
+  { metres:    227, rgb: [0.307, 0.426, 0.21] },
+  { metres:    245, rgb: [0.31, 0.427, 0.211] },
+  { metres:    264, rgb: [0.313, 0.428, 0.212] },
+  { metres:    282, rgb: [0.316, 0.429, 0.213] },
+  { metres:    300, rgb: [0.319, 0.43, 0.213] },
+  { metres:    320, rgb: [0.322, 0.432, 0.214] },
+  { metres:    340, rgb: [0.325, 0.433, 0.215] },
+  { metres:    355, rgb: [0.327, 0.434, 0.215] },
+  { metres:    375, rgb: [0.331, 0.435, 0.216] },
+  { metres:    395, rgb: [0.334, 0.436, 0.217] },
+  { metres:    410, rgb: [0.336, 0.437, 0.218] },
+  { metres:    430, rgb: [0.339, 0.438, 0.218] },
+  { metres:    450, rgb: [0.343, 0.439, 0.219] },
+  { metres:    470, rgb: [0.346, 0.441, 0.22] },
+  { metres:    485, rgb: [0.348, 0.442, 0.221] },
+  { metres:    510, rgb: [0.352, 0.443, 0.221] },
+  { metres:    545, rgb: [0.354, 0.444, 0.222] },
+  { metres:    585, rgb: [0.358, 0.445, 0.223] },
+  { metres:    620, rgb: [0.361, 0.446, 0.224] },
+  { metres:    655, rgb: [0.363, 0.447, 0.224] },
+  { metres:    695, rgb: [0.367, 0.448, 0.225] },
+  { metres:    730, rgb: [0.37, 0.449, 0.226] },
+  { metres:    770, rgb: [0.373, 0.451, 0.227] },
+  { metres:    805, rgb: [0.376, 0.452, 0.227] },
+  { metres:    840, rgb: [0.38, 0.453, 0.228] },
+  { metres:    880, rgb: [0.386, 0.455, 0.23] },
+  { metres:    915, rgb: [0.391, 0.457, 0.232] },
+  { metres:    955, rgb: [0.397, 0.46, 0.233] },
+  { metres:    990, rgb: [0.402, 0.461, 0.235] },
+  { metres:   1030, rgb: [0.408, 0.464, 0.236] },
+  { metres:   1065, rgb: [0.414, 0.466, 0.238] },
+  { metres:   1100, rgb: [0.419, 0.468, 0.239] },
+  { metres:   1140, rgb: [0.425, 0.47, 0.241] },
+  { metres:   1175, rgb: [0.431, 0.472, 0.242] },
+  { metres:   1215, rgb: [0.437, 0.474, 0.244] },
+  { metres:   1250, rgb: [0.442, 0.476, 0.245] },
+  { metres:   1285, rgb: [0.448, 0.478, 0.247] },
+  { metres:   1325, rgb: [0.454, 0.48, 0.248] },
+  { metres:   1360, rgb: [0.459, 0.482, 0.25] },
+  { metres:   1400, rgb: [0.465, 0.484, 0.251] },
+  { metres:   1435, rgb: [0.471, 0.486, 0.253] },
+  { metres:   1470, rgb: [0.476, 0.488, 0.254] },
+  { metres:   1510, rgb: [0.483, 0.49, 0.256] },
+  { metres:   1545, rgb: [0.488, 0.492, 0.257] },
+  { metres:   1585, rgb: [0.494, 0.494, 0.259] },
+  { metres:   1620, rgb: [0.496, 0.492, 0.261] },
+  { metres:   1660, rgb: [0.498, 0.49, 0.262] },
+  { metres:   1695, rgb: [0.502, 0.488, 0.265] },
+  { metres:   1730, rgb: [0.505, 0.487, 0.268] },
+  { metres:   1770, rgb: [0.509, 0.485, 0.271] },
+  { metres:   1805, rgb: [0.513, 0.483, 0.274] },
+  { metres:   1845, rgb: [0.517, 0.481, 0.278] },
+  { metres:   1880, rgb: [0.521, 0.48, 0.281] },
+  { metres:   1915, rgb: [0.524, 0.478, 0.283] },
+  { metres:   1955, rgb: [0.528, 0.476, 0.287] },
+  { metres:   1990, rgb: [0.532, 0.474, 0.29] },
+  { metres:   2050, rgb: [0.535, 0.472, 0.293] },
+  { metres:   2125, rgb: [0.539, 0.47, 0.296] },
+  { metres:   2200, rgb: [0.543, 0.468, 0.3] },
+  { metres:   2250, rgb: [0.546, 0.466, 0.302] },
+  { metres:   2325, rgb: [0.55, 0.464, 0.305] },
+  { metres:   2400, rgb: [0.554, 0.462, 0.309] },
+  { metres:   2475, rgb: [0.558, 0.459, 0.312] },
+  { metres:   2550, rgb: [0.562, 0.457, 0.316] },
+  { metres:   2600, rgb: [0.565, 0.457, 0.319] },
+  { metres:   2675, rgb: [0.57, 0.459, 0.325] },
+  { metres:   2750, rgb: [0.575, 0.462, 0.332] },
+  { metres:   2825, rgb: [0.58, 0.464, 0.338] },
+  { metres:   2875, rgb: [0.583, 0.465, 0.343] },
+  { metres:   2950, rgb: [0.588, 0.468, 0.349] },
+  { metres:   3025, rgb: [0.593, 0.47, 0.356] },
+  { metres:   3100, rgb: [0.598, 0.472, 0.363] },
+  { metres:   3175, rgb: [0.603, 0.475, 0.37] },
+  { metres:   3225, rgb: [0.606, 0.476, 0.374] },
+  { metres:   3300, rgb: [0.61, 0.479, 0.381] },
+  { metres:   3375, rgb: [0.614, 0.482, 0.389] },
+  { metres:   3450, rgb: [0.616, 0.485, 0.398] },
+  { metres:   3500, rgb: [0.618, 0.487, 0.405] },
+  { metres:   3575, rgb: [0.62, 0.491, 0.414] },
+  { metres:   3650, rgb: [0.624, 0.5, 0.43] },
+  { metres:   3725, rgb: [0.631, 0.516, 0.455] },
+  { metres:   3800, rgb: [0.639, 0.532, 0.479] },
+  { metres:   3850, rgb: [0.644, 0.543, 0.494] },
+  { metres:   3925, rgb: [0.653, 0.559, 0.518] },
+  { metres:   4000, rgb: [0.661, 0.576, 0.541] }, // rock and scree
+  { metres:   4175, rgb: [0.669, 0.591, 0.561] },
+  { metres:   4375, rgb: [0.679, 0.609, 0.583] },
+  { metres:   4550, rgb: [0.696, 0.635, 0.614] },
+  { metres:   4750, rgb: [0.717, 0.665, 0.649] },
+  { metres:   4925, rgb: [0.735, 0.691, 0.679] },
+  { metres:   5100, rgb: [0.754, 0.718, 0.708] },
+  { metres:   5300, rgb: [0.777, 0.748, 0.741] },
+  { metres:   5475, rgb: [0.797, 0.774, 0.769] },
+  { metres:   5675, rgb: [0.817, 0.799, 0.796] },
+  { metres:   5850, rgb: [0.834, 0.82, 0.818] },
+  { metres:   6025, rgb: [0.851, 0.84, 0.839] },
+  { metres:   6225, rgb: [0.872, 0.864, 0.863] },
+  { metres:   6400, rgb: [0.89, 0.884, 0.884] },
+  { metres:   6600, rgb: [0.908, 0.905, 0.905] },
+  { metres:   6775, rgb: [0.917, 0.914, 0.914] },
+  { metres:   6950, rgb: [0.926, 0.923, 0.923] },
+  { metres:   7150, rgb: [0.936, 0.934, 0.934] },
+  { metres:   7325, rgb: [0.944, 0.943, 0.943] },
+  { metres:   7525, rgb: [0.954, 0.953, 0.953] },
+  { metres:   7700, rgb: [0.963, 0.963, 0.963] },
+  { metres:   7900, rgb: [0.972, 0.971, 0.971] },
+  { metres:   8075, rgb: [0.976, 0.976, 0.976] },
+  { metres:   8250, rgb: [0.981, 0.981, 0.981] },
+  { metres:   8450, rgb: [0.986, 0.986, 0.986] },
+  { metres:   8625, rgb: [0.99, 0.99, 0.99] },
+  { metres:   8825, rgb: [0.995, 0.995, 0.995] },
+  { metres:   9000, rgb: [1, 1, 1] }, // the top of the ramp; Everest is 8,849
+]
+
+/**
+ * The ramp, baked into a lookup table before the globe is built.
+ *
+ * 450 anchors are free in a text file but expensive here: 8.4 million vertices
+ * each scanning up to 450 anchors is about 1.6 billion comparisons before the
+ * first frame. So the ramp is read once, into a table, and every vertex after
+ * that is one multiply, one floor and a lerp.
+ *
+ * It is the same split as BufferAttribute against the geometry: the ramp is the
+ * description, the table is the shape the running code uses. It also means the
+ * ramp can be as detailed as you like — adding anchors does not slow the lookup.
+ *
+ * There are TWO tables, one for water and one for land, and that is not tidiness.
+ * A single table spanning -11000..9000 spaces its entries ~5 m apart, so the
+ * 4 m between the teal at -4 m and the sand at 0 m falls *between* two entries
+ * and gets blended across both. The coastline — the one hard edge on the whole
+ * globe — came out 46% softer. Two tables put an entry exactly on each side of
+ * it, so the step stays a step.
+ */
+const ELEVATION_LUT_SIZE = 4096
+
+// where the ramp crosses the waterline. findIndex stops at the first anchor at
+// or above 0 m, so the one before it is the last water anchor (-4 m).
+const FIRST_LAND_ANCHOR = ELEVATION_RAMP.findIndex((anchor) => anchor.metres >= 0)
+const LAST_WATER_METRES = ELEVATION_RAMP[FIRST_LAND_ANCHOR - 1].metres
+const FIRST_LAND_METRES = ELEVATION_RAMP[FIRST_LAND_ANCHOR].metres
+const LOWEST_METRES = ELEVATION_RAMP[0].metres
+const HIGHEST_METRES = ELEVATION_RAMP[ELEVATION_RAMP.length - 1].metres
+const WATER_LUT = bakeElevationLut(LOWEST_METRES, LAST_WATER_METRES)
+const LAND_LUT = bakeElevationLut(FIRST_LAND_METRES, HIGHEST_METRES)
+/**
+ * The ramp, baked into a lookup table before the globe is built.
+ *
+ * 450 anchors are free in a text file but expensive here: 8.4 million vertices
+ * each scanning up to 450 anchors is about 1.6 billion comparisons before the
+ * first frame. So the ramp is read once, into a table, and every vertex after
+ * that is one multiply, one floor and a lerp.
+ *
+ * It is the same split as BufferAttribute against the geometry: the ramp is the
+ * description, the table is the shape the running code uses. It also means the
+ * ramp can be as detailed as you like — adding anchors does not slow the lookup.
+ *
+ * There are TWO tables, one for water and one for land, and that is not tidiness.
+ * A single table spanning -11000..9000 spaces its entries ~5 m apart, so the
+ * 4 m between the teal at -4 m and the sand at 0 m falls *between* two entries
+ * and gets blended across both. The coastline — the one hard edge on the whole
+ * globe — came out 46% softer. Two tables put an entry exactly on each side of
+ * it, so the step stays a step.
+ */
+
+export function srgbToLinear(value: number): number {
+  return value <= 0.04045 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
+}
+
+function bakeElevationLut(from: number, to: number): Float32Array {
+  const table = new Float32Array(ELEVATION_LUT_SIZE * 3)
+  const step = (to - from) / (ELEVATION_LUT_SIZE - 1)
+  for (let i = 0; i < ELEVATION_LUT_SIZE; i++) {
+    const [red, green, blue] = sampleRamp(from + i * step)
+    table[i * 3] = srgbToLinear(red)
+    table[i * 3 + 1] = srgbToLinear(green)
+    table[i * 3 + 2] = srgbToLinear(blue)
+  }
+  return table
+}
+
+/** Walk the anchors: what the ramp literally says at one height. */
+export function sampleRamp(metres: number): [number, number, number] {
+  let low = ELEVATION_RAMP[0]
+  let high = ELEVATION_RAMP[ELEVATION_RAMP.length - 1]
+
+  for (let i = 1; i < ELEVATION_RAMP.length; i++) {
+    if (metres <= ELEVATION_RAMP[i].metres) {
+      low = ELEVATION_RAMP[i - 1]
+      high = ELEVATION_RAMP[i]
+      break
+    }
+  }
+
+  const span = high.metres - low.metres
+  const t = span === 0 ? 0 : (metres - low.metres) / span
+  const clamped = t < 0 ? 0 : t > 1 ? 1 : t
+
+  return [
+    low.rgb[0] + (high.rgb[0] - low.rgb[0]) * clamped,
+    low.rgb[1] + (high.rgb[1] - low.rgb[1]) * clamped,
+    low.rgb[2] + (high.rgb[2] - low.rgb[2]) * clamped,
+  ]
+}
+
+// one triple, reused. A fresh array per vertex would be 8.4 million of them.
+const scratchColor: [number, number, number] = [0, 0, 0]
+
+/**
+ * The colour for a height, out of the baked table. O(1) whatever the ramp does.
+ *
+ * Note the return type: ONE triple, reused for every call. It is a Float32Array
+ * rather than a tuple so the nine million reads below do not each allocate, and
+ * that makes copying the three numbers out — `const [r, g, b] = elevationColor(m)` —
+ * the caller's job before asking for the next one.
+ */
+export function elevationColor(metres: number): Color3 {
+  const underwater = metres < 0
+  const table = underwater ? WATER_LUT : LAND_LUT
+  const from = underwater ? LOWEST_METRES : FIRST_LAND_METRES
+  const to = underwater ? LAST_WATER_METRES : HIGHEST_METRES
+
+  // anything below -4 m is water and anything from 0 m up is land, so the
+  // clamp is doing real work for the last few metres on either side
+  const exact = ((metres - from) / (to - from)) * (ELEVATION_LUT_SIZE - 1)
+  const position = exact < 0 ? 0 : exact > ELEVATION_LUT_SIZE - 1 ? ELEVATION_LUT_SIZE - 1 : exact
+  const low = Math.floor(position)
+  const high = low < ELEVATION_LUT_SIZE - 1 ? low + 1 : low
+  const t = position - low
+  const a = low * 3
+  const b = high * 3
+
+  scratchColor[0] = table[a] + (table[b] - table[a]) * t
+  scratchColor[1] = table[a + 1] + (table[b + 1] - table[a + 1]) * t
+  scratchColor[2] = table[a + 2] + (table[b + 2] - table[a + 2]) * t
+
+  return scratchColor
+}
