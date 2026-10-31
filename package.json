@@ -25,11 +25,13 @@
   },
   "files": ["dist", "data", "README.md"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node test/run.mjs",
+    "clean": "node -e \"const fs=require('node:fs'); for (const dir of ['dist','.test-dist']) fs.rmSync(dir,{recursive:true,force:true})\"",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "build:test": "node -e \"require('node:fs').rmSync('.test-dist',{recursive:true,force:true})\" && tsc -p tsconfig.test.json",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test": "npm run build && npm run build:test && node --test --test-concurrency=1 \".test-dist/**/*.test.js\"",
     "prepare-data": "node scripts/prepare-data.mjs",
-    "prepublishOnly": "npm run build && node test/run.mjs"
+    "prepublishOnly": "npm run build && npm run build:test && node --test --test-concurrency=1 \".test-dist/**/*.test.js\""
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

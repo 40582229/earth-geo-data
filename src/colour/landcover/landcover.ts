@@ -1,16 +1,9 @@
-import type { Color3 } from './types.js'
-import { srgbToLinear } from './ramp.js'
+import type { Color3 } from '../types.js'
+import { srgbToLinear } from '../ramp/index.js'
+import type { LandCoverClass } from './landcover.types.js'
 
 /* IGBP class codes, the scheme MODIS MCD12Q1 uses; the colours are chosen for a
    planet seen from orbit, not sampled from the product's own display palette. */
-
-/** One land-cover class. `id` is the IGBP code as MODIS stores it. */
-export type LandCoverClass = {
-  id: number
-  key: string
-  name: string
-  rgb: Color3
-}
 
 /** The seventeen IGBP classes, with the colour each one gets on the globe. */
 export const landCover: readonly LandCoverClass[] = [
@@ -35,7 +28,7 @@ export const landCover: readonly LandCoverClass[] = [
 
 /** The class codes that mean water. IGBP uses 0 and 17 for the same thing, and
  *  some products write 255 for "no data over the sea"; all three are water here. */
-export const waterClasses: readonly number[] = [0, 17]
+export const waterClasses: readonly number[] = [0, 17, 255]
 
 /** The class code for permanent snow and ice. */
 export const snowClass = 15
@@ -47,7 +40,9 @@ export const landCoverClass = (id: number): LandCoverClass | undefined => {
   return byId.get(id)
 }
 
-/* The colour of a class, in linear light — the space a vertex buffer wants. */
+/* The colour of a class, in linear light — the space a vertex buffer wants.
+   Returns the module's one triple, refilled on the next call: read it, or copy
+   it, before calling again. */
 export const landCoverColor = (id: number): Color3 => {
   const entry = byId.get(id) ?? byId.get(17)!
   scratch[0] = srgbToLinear(entry.rgb[0])

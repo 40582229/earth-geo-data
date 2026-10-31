@@ -1,78 +1,15 @@
-import type { EarthGeoData } from '../dataset/container.js'
-import type { Color3 } from '../colour/types.js'
-import { elevationColor } from '../colour/ramp.js'
-import type { ElevationSampler, GlobeView, Surface } from '../projection/projector.js'
-import { defaultView, projector, samplerFromGrid } from '../projection/projector.js'
-import { openDataset } from '../source/index.js'
-import type { SourceOptions } from '../source/index.js'
-import type { ElevationGrid } from './grid.js'
-import { gridLayout } from './layout.js'
+import type { EarthGeoData } from '../../dataset/container/index.js'
+import { elevationColor } from '../../colour/ramp/index.js'
+import { defaultView, projector, samplerFromGrid } from '../../projection/projector/index.js'
+import { openDataset } from '../../source/index.js'
+import type { ElevationGrid } from '../grid/index.js'
+import { gridLayout } from '../layout/index.js'
+import type { ElevationSurface, LoadOptions, SurfaceColour, SurfaceOptions } from './surface.types.js'
 
 /* Grid indices become angles — column to longitude, row to latitude — and the
    height pushes the point out from the centre. 'plane' turns the same two
    indices into distances instead. Read those four numbers off the header; do
    not assume column 0 is -180. */
-
-/* The colour of one vertex, in the space a vertex buffer wants — linear, not sRGB. */
-export type SurfaceColour = (value: number, row: number, column: number) => Color3
-
-/** What the surface turned out to be. Every number here was measured while
- *  building it, so a caller can print it or assert on it without a second pass. */
-export type SurfaceInfo = {
-  grid: string
-  vertices: number
-  triangles: number
-  lowestMetres: number
-  highestMetres: number
-  /** Distance from the centre (sphere) or height above the plane's zero (plane),
-   *  measured over every vertex — the actual extent of the geometry, not the
-   *  requested one. */
-  radiusMin: number
-  radiusMax: number
-  belowSeaLevelShare: number
-  radius: number
-  heightExaggeration: number
-  longitudeOffset: number
-  surface: Surface
-  columnZeroLon: number
-  /** Degrees of longitude per column: the span over `width` columns, not
-   *  `width - 1`. The latitude step is a different number — rows include both
-   *  poles, columns do not repeat a meridian — so it is separate. */
-  cellDegrees: number
-  cellDegreesLat: number
-}
-
-/** A surface ready for a vertex buffer: three arrays, nothing else required. */
-export type ElevationSurface = {
-  kind: 'surface'
-  positions: Float32Array
-  /** Linear rgb, one triple per vertex — the default elevation ramp unless
-   *  `colourOf` said otherwise. */
-  colors: Float32Array
-  indices: Uint32Array
-  count: number
-  width: number
-  height: number
-  /** The view it was built with, in full. Anything drawn on this surface should
-   *  use it — `buildContours(surface)` reads it from here so the lines land on
-   *  the terrain instead of on a different-sized sphere. */
-  view: GlobeView
-  heights: Float32Array
-  info: SurfaceInfo
-  sample: ElevationSampler
-  data: EarthGeoData
-}
-
-export type SurfaceOptions = {
-  /** Where to put the surface and what shape it is. `surface: 'plane'` gives the
-   *  same grid laid out flat — pass the same view to anything you want on it.
-   *  Default: the globe in defaultView, radius 6, relief at 30x. */
-  view?: Partial<GlobeView>
-
-  colourOf?: SurfaceColour
-}
-
-export type LoadOptions = SourceOptions & SurfaceOptions
 
 /* Turn a height grid into xyz positions, rgb colours and indices. */
 export const buildSurface = (
@@ -168,18 +105,12 @@ export const buildSurface = (
     view,
     heights,
     info: {
-      grid: `${width}x${height}`,
-      vertices: count,
-      triangles: indices.length / 3,
       lowestMetres: lowest,
       highestMetres: highest,
       radiusMin,
       radiusMax,
       belowSeaLevelShare: belowSeaLevel / count,
-      radius: view.radius,
-      heightExaggeration: view.heightExaggeration,
-      longitudeOffset: view.longitudeOffset,
-      surface: view.surface,
+      triangles: indices.length / 3,
       columnZeroLon: layout.columnZeroLon,
       cellDegrees: layout.longitudeSpan / width,
       cellDegreesLat: layout.latitudeSpan / (height - 1),

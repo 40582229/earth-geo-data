@@ -1,11 +1,12 @@
-import type { Color3 } from '../colour/types.js'
-import { elevationColor } from '../colour/ramp.js'
-import { snowClass, waterClasses, landCoverColor } from '../colour/landcover.js'
-import type { ElevationGrid } from '../elevation/grid.js'
-import { gridLayout } from '../elevation/layout.js'
-import type { SurfaceColour } from '../elevation/surface.js'
-import type { LandCoverGrid } from './grid.js'
-import { classAt } from './grid.js'
+import type { Color3 } from '../../colour/types.js'
+import { elevationColor } from '../../colour/ramp/index.js'
+import { snowClass, waterClasses, landCoverColor } from '../../colour/landcover/index.js'
+import type { ElevationGrid } from '../../elevation/grid/index.js'
+import { gridLayout } from '../../elevation/layout/index.js'
+import type { SurfaceColour } from '../../elevation/surface/index.js'
+import type { LandCoverGrid } from '../grid/index.js'
+import { classAt } from '../grid/index.js'
+import type { EarthColourOptions } from './earth.types.js'
 
 /* Paint order, and why height still matters on land:
 
@@ -15,24 +16,6 @@ import { classAt } from './grid.js'
 
    Temperature is latitude plus height, which puts the snow line at sea level in
    the Arctic and at 4.5 km at the equator. */
-
-/** How the land is painted. Everything has a default that looks like the Earth;
- *  the options are there so a caller can paint a different planet with the same
- *  two rasters. */
-export type EarthColourOptions = {
-  /** Blend land to ice where it is cold enough. Default true. Turn it off and
-   *  every mountain is the colour of the ground at sea level beside it. */
-  snow?: boolean
-  /** Let the snow-and-ice class paint over the ocean, so sea ice and ice shelves
-   *  are white instead of water. Default true — without it the Arctic is a hole
-   *  in the ice cap, which is not what a satellite sees. */
-  ice?: boolean
-  /** What to paint below sea level. Default: the elevation ramp, which has the
-   *  bathymetry in it. */
-  ocean?: (metres: number) => Color3
-  /** What to paint a land class. Default: the land-cover palette. */
-  land?: (classId: number) => Color3
-}
 
 type Resolved = {
   snow: boolean
@@ -120,9 +103,14 @@ const paint = (metres: number, classId: number, latitude: number, resolved: Reso
   return mixed
 }
 
-/* The colour of a point, given everything that decides it: how high it is, what is on it, and how far from… */
+/* The colour of a point, given everything that decides it: how high it is, what
+   is on it, and how far from the equator. Every branch of paint returns a triple
+   the module refills, which is fine for the per-vertex `colourOf` below because
+   `buildSurface` copies each vertex before asking for the next one — but this is
+   the one-shot entry point, so it hands out a copy that a caller may keep. */
 export const earthColour = (metres: number, classId: number, latitude: number): Color3 => {
-  return paint(metres, classId, latitude, defaults)
+  const colour = paint(metres, classId, latitude, defaults)
+  return [colour[0], colour[1], colour[2]]
 }
 
 /* A `colourOf` for `buildSurface`: the rule above, wired to the two grids. */

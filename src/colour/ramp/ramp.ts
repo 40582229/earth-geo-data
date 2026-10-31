@@ -1,6 +1,7 @@
-import type { Color3 } from './types.js'
+import type { Color3 } from '../types.js'
+import type { RampAnchor } from './ramp.types.js'
 
-export const elevationRamp: { metres: number; rgb: Color3 }[] = [
+export const elevationRamp: RampAnchor[] = [
   { metres: -11000, rgb: [0.006, 0.009, 0.054] }, // the deepest the ramp goes; Challenger Deep is -10,935
   { metres: -10850, rgb: [0.006, 0.01, 0.056] },
   { metres: -10675, rgb: [0.007, 0.01, 0.059] },
@@ -509,7 +510,9 @@ const landColourTable = bakeElevationTable(firstLandMetres, highestMetres)
 // one triple, reused. A fresh array per vertex would be 8.4 million of them.
 const scratchColor: [number, number, number] = [0, 0, 0]
 
-/* The colour for a height, out of the baked table. */
+/* The colour for a height, out of the baked table. Returns `scratchColor` — the
+   one triple above, refilled on the next call — so read it, or copy it, before
+   asking for another height. */
 export const elevationColor = (metres: number): Color3 => {
   const underwater = metres < 0
   const table = underwater ? waterColourTable : landColourTable

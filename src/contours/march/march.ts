@@ -1,7 +1,7 @@
-import type { GlobeView, Surface } from '../projection/projector.js'
-import { defaultView, projector } from '../projection/projector.js'
-import type { ElevationGrid } from '../elevation/grid.js'
-import { gridLayout } from '../elevation/layout.js'
+import { defaultView, projector } from '../../projection/projector/index.js'
+import type { ElevationGrid } from '../../elevation/grid/index.js'
+import { gridLayout } from '../../elevation/layout/index.js'
+import type { ContourLevel, ContourLines, ContourOptions } from './march.types.js'
 
 /* Marching squares, one cell at a time: the four corners give a min and a max,
    so only the levels between them can cross. Cases 5 and 10 are ambiguous and
@@ -13,44 +13,6 @@ export const hypsometricLevels: readonly number[] = Object.freeze([
   -500, -1000, -2000, -3000, -4000, -5000, -6000,
   250, 500, 1000, 1500, 2000, 3000, 4000, 5000, 6000,
 ])
-
-/** One traced level: where its segments start, and how many there are. */
-export type ContourLevel = {
-  level: number
-  offset: number
-  segments: number
-}
-
-export type ContourInfo = {
-  width: number
-  height: number
-  levels: number
-  segments: number
-  vertices: number
-  surface: Surface
-  radius: number
-  heightExaggeration: number
-  longitudeOffset: number
-}
-
-/** Height lines, ready for a line-segment buffer: two vertices per segment. */
-export type ContourLines = {
-  kind: 'contours'
-  /** xyz, two vertices per segment, grouped by level in ascending order. To draw
-   *  one level, start at `levels[levelIndex].offset * 6` floats and take
-   *  `levels[levelIndex].segments * 6`. */
-  positions: Float32Array
-  levels: ContourLevel[]
-  segments: number
-  info: ContourInfo
-}
-
-export type ContourOptions = {
-  /** Which heights to trace, in metres. Default: hypsometricLevels. */
-  levels?: readonly number[]
-  every?: number
-  view?: Partial<GlobeView>
-}
 
 /** Vertices a level's buffer starts with; it doubles as needed. */
 const initialVertices = 8192
@@ -230,17 +192,9 @@ export const buildContours = (
     positions,
     levels: outLevels,
     segments: write / 2,
-    info: {
-      width,
-      height,
-      levels: count,
-      segments: write / 2,
-      vertices: write,
-      surface: view.surface,
-      radius: view.radius,
-      heightExaggeration: view.heightExaggeration,
-      longitudeOffset: view.longitudeOffset,
-    },
+    width,
+    height,
+    view,
   }
 }
 

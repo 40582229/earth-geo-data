@@ -1,16 +1,7 @@
-import type { EarthGeoData } from '../dataset/container.js'
-import type { GlobeView } from '../projection/projector.js'
-import { openDataset } from '../source/index.js'
-import type { SourceOptions } from '../source/index.js'
-
-/** A decoded elevation grid, in metres, with the shape of the grid. */
-export type ElevationGrid = {
-  data: EarthGeoData
-  width: number
-  height: number
-  heights: Float32Array
-  view?: GlobeView
-}
+import type { EarthGeoData } from '../../dataset/container/index.js'
+import { openDataset } from '../../source/index.js'
+import type { SourceOptions } from '../../source/index.js'
+import type { ElevationGrid } from './grid.types.js'
 
 /* Fetch a terrain grid and decode it to metres. */
 export const loadElevationGrid = async (

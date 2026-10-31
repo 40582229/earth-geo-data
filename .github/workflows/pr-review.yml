@@ -14,10 +14,16 @@ concurrency:
 
 env:
   DEEPSEEK_MODEL: deepseek-flash
+  # The deepest thinking the API offers, and what lets the answer arrive as JSON
+  # instead of a paragraph. It is the slowest and most expensive setting.
+  REASONING_EFFORT: max
   # Every code file in the repo, deleted and re-added, is about 260,000 characters.
   DIFF_CHARACTER_LIMIT: 300000
   SNAPSHOT_CHARACTER_LIMIT: 200000
   TEST_OUTPUT_CHARACTER_LIMIT: 4000
+  # COMMENT keeps the review advisory. "REQUEST_CHANGES" turns a BLOCK into a
+  # review somebody has to dismiss before this pull request can merge.
+  REVIEW_EVENT: COMMENT
   # Set to "true" and add the review check to the ruleset to let a BLOCK verdict fail the merge.
   BLOCK_ON_VERDICT: "false"
 
@@ -30,6 +36,10 @@ jobs:
       BASE_BRANCH: ${{ github.base_ref }}
       PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
       PULL_REQUEST_BODY: ${{ github.event.pull_request.body }}
+      # The review is attached to this commit, so a comment's line has to exist
+      # in this version of the file — the check out is the pull request's merge
+      # commit, and the line numbers are counted against the head.
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,7 +75,7 @@ jobs:
 
           # The snapshot is the same for every pull request, so it goes first and caches.
           : > repository-snapshot.txt
-          git ls-files src test scripts AGENTS.md package.json tsconfig.json \
+          git ls-files src scripts AGENTS.md package.json tsconfig.json tsconfig.test.json \
             | while IFS= read -r repository_path; do
                 [ -f "$repository_path" ] || continue
                 printf '\n=== %s ===\n' "$repository_path" >> repository-snapshot.txt
@@ -110,10 +120,24 @@ jobs:
           mv diff-excerpt-clean.txt diff-excerpt.txt
 
           {
-            printf '%s\n\n' "You review pull requests for earth-geo-data, a TypeScript package that turns elevation and land-cover grids into typed arrays. The tests are the spec, so a change that moves a number is wrong even if it compiles."
-            printf '%s\n\n' "Report only what is worth fixing: bugs, wrong numbers, API misuse, type errors, conventions broken, tests that do not prove the claim. Check the callers in the snapshot before saying a change is safe or unsafe. No praise, no restating the diff, no file paths you did not see. Under 300 words, one line per point, each starting with the file path."
-            printf '%s\n\n' "If the diff says files were left out, name them as things you could not see."
-            printf '%s\n\n' "End with one line, exactly VERDICT: PASS or VERDICT: BLOCK."
+            printf '%s\n\n' "You review pull requests for earth-geo-data, a TypeScript package with no runtime dependencies that turns elevation and land-cover grids into the typed arrays behind a 3D Earth. You know TypeScript the way the compiler knows it, and you know this data: equirectangular grids, cell to angle conversion, the antimeridian seam, and the unit every number is in."
+            printf '%s\n\n' "Answer with one JSON object and nothing else, in exactly this shape:"
+            printf '%s\n\n' '{"verdict": "PASS", "summary": "one sentence, at most 30 words", "findings": [{"path": "src/file.ts", "quote": "one line copied from a line the diff adds", "body": "what is wrong and what to do about it, at most 40 words"}]}'
+            printf '%s\n\n' "Rules:"
+            printf '%s\n\n' "- Report only what is worth fixing: bugs, wrong numbers, API misuse, type errors, conventions broken, tests that do not prove what they claim. Never report a change as fine. If it is fine, say nothing about it."
+            printf '%s\n\n' "- quote is one line, copied character for character from a line this diff adds, without its leading plus. That quote is what places the comment on the line, so keep it short and unique in the file. Leave quote out when no added line is worth quoting, and the finding is written into the review text instead."
+            printf '%s\n\n' "- path must be one of the files this diff changes. At most 12 findings, the most serious first."
+            printf '%s\n\n' "- verdict is BLOCK only when at least one finding is a real defect, and PASS otherwise. Do not block over taste."
+            printf '%s\n\n' "- Check the callers in the snapshot before saying a change is safe or unsafe. No praise, no restating the diff, no file paths you did not see."
+            printf '%s\n\n' "- If the diff says files were left out, say which in summary."
+            printf '%s\n\n' "What goes wrong in this code, and what to check:"
+            printf '%s\n\n' "- A grid header says where the cells are. rowZero is north, so latitude is 90 - row / (height - 1) * latitudeSpan; dividing by height instead of height - 1 shifts every row by half a cell. Column 0 is columnZeroLon, which is not always -180."
+            printf '%s\n\n' "- The surface writes width + 1 columns: the extra column repeats the height of column 0 so the antimeridian closes, and its longitude is one whole span past column 0, not one cell past the last column. The vertex count is (width + 1) * height and the triangle count is width * (height - 1) * 2."
+            printf '%s\n\n' "- Heights are metres and angles are degrees. An equirectangular cell is not square on the ground: its width goes as cos(latitude). A distance, an area or a slope computed without cos(latitude) is wrong away from the equator and degenerate at the poles."
+            printf '%s\n\n' "- Rows 0 and height - 1 are the poles: one point each, not a row of distinct vertices. nodata is a number or null, and it must not be painted as the deepest ocean or the highest peak, nor allowed into min, max or mean."
+            printf '%s\n\n' "- Land cover is IGBP: ids 1 to 17, with 0 and 17 meaning water and 255 meaning fill. Contour levels are sorted and strictly increasing, and a test that looks up expected counts with indexOf is only right if the source array is in the same sorted order."
+            printf '%s\n\n' "- Colours are linear light, not sRGB, and the elevation ramp is keyed on metres from -11000 upwards. A class or level table that stops being sorted, or that gains a duplicate, breaks lookups that assume order."
+            printf '%s\n\n' "- The tests are the spec: a change that moves a number (a count, a total, a cell size, a radius) is wrong even when it compiles. The type tests compare whole shapes with Flatten and Equal, so a test that only pins key names proves nothing."
             printf 'The repository, minus data/ and dist/:\n%s\n' "$(cat snapshot-excerpt.txt)"
           } > system-prompt.txt
 
@@ -125,33 +149,70 @@ jobs:
             printf 'Diff:\n%s\n' "$(cat diff-excerpt.txt)"
           } > user-prompt.txt
 
+          # temperature is left out on purpose: it has no effect in thinking mode.
+          # max_tokens covers the reasoning and the answer together, so it is well
+          # above the size of the answer alone.
           jq -n --arg model "$DEEPSEEK_MODEL" \
+                --arg effort "$REASONING_EFFORT" \
                 --rawfile system_prompt system-prompt.txt \
                 --rawfile user_prompt user-prompt.txt \
             '{model: $model,
               messages: [{role: "system", content: $system_prompt},
                          {role: "user", content: $user_prompt}],
-              thinking: {type: "disabled"},
-              temperature: 0.2,
-              max_tokens: 2000}' > request.json
+              thinking: {type: "enabled"},
+              reasoning_effort: $effort,
+              response_format: {type: "json_object"},
+              max_tokens: 32000}' > request.json
 
-          http_status=$(curl -sS -o api-response.json -w '%{http_code}' \
-            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
-            -H 'Content-Type: application/json' \
-            --data-binary @request.json \
-            https://api.deepseek.com/chat/completions)
+          ask () {
+            curl -sS -o api-response.json -w '%{http_code}' \
+              -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+              -H 'Content-Type: application/json' \
+              --data-binary @request.json \
+              https://api.deepseek.com/chat/completions
+          }
+
+          http_status=$(ask)
           echo "DeepSeek answered with HTTP $http_status"
           if [ "$http_status" != "200" ]; then
             cat api-response.json
             exit 1
           fi
 
-          jq -r '.choices[0].message.content' api-response.json > review.md
-          {
-            printf '**DeepSeek review** (%s)\n\n' "$DEEPSEEK_MODEL"
-            cat review.md
-          } > review-comment.md
-          gh pr comment "$PULL_REQUEST_NUMBER" --body-file review-comment.md
+          jq -r '.choices[0].message.content // ""' api-response.json > review.json
+
+          # JSON Output replaces an answer it cannot read with spaces, so an all
+          # whitespace answer is a known failure of that mode. It costs one more
+          # call, and the alternative is an empty review.
+          if [ -z "$(tr -d '[:space:]' < review.json)" ]; then
+            echo "The answer came back blank; asking once more."
+            http_status=$(ask)
+            if [ "$http_status" != "200" ]; then
+              cat api-response.json
+              exit 1
+            fi
+            jq -r '.choices[0].message.content // ""' api-response.json > review.json
+          fi
+
+          jq -r '.choices[0].message.reasoning_content // ""' api-response.json > reasoning.md
+          printf 'thinking: %s characters of reasoning, %s of answer, finish_reason %s\n' \
+            "$(wc -c < reasoning.md | tr -d ' ')" \
+            "$(wc -c < review.json | tr -d ' ')" \
+            "$(jq -r '.choices[0].finish_reason' api-response.json)"
+
+          node scripts/anchor-review.mjs
+
+          # A review, not a comment: every finding that quotes a line this pull
+          # request adds is attached to that line. GitHub rejects the whole review
+          # if one line is not in the diff, so the same findings are then posted
+          # as a single comment with nothing placed.
+          review_url="repos/$GITHUB_REPOSITORY/pulls/$PULL_REQUEST_NUMBER/reviews"
+          if gh api --method POST "$review_url" --input review-request.json > /dev/null; then
+            echo "Posted the review."
+          else
+            echo "GitHub refused the placed lines; posting the findings as one comment."
+            gh api --method POST "$review_url" --input review-request-flat.json > /dev/null
+          fi
 
       - name: Fail the check when the tests failed
         if: env.DEEPSEEK_API_KEY != '' && steps.tests.outcome == 'failure' && !contains(github.event.pull_request.labels.*.name, 'review-override')
@@ -162,4 +223,4 @@ jobs:
       - name: Fail the check when the verdict is BLOCK
         if: env.DEEPSEEK_API_KEY != '' && env.BLOCK_ON_VERDICT == 'true' && !contains(github.event.pull_request.labels.*.name, 'review-override')
         run: |
-          if grep -q 'VERDICT: BLOCK' review.md; then exit 1; fi
+          if grep -q BLOCK verdict.txt; then exit 1; fi

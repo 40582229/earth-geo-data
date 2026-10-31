@@ -1,5 +1,5 @@
-import type { GridHeader } from '../dataset/container.js'
-import type { ElevationGrid } from './grid.js'
+import type { GridHeader } from '../../dataset/container/index.js'
+import type { ElevationGrid } from '../grid/index.js'
 
 export const gridLayout = (grid: ElevationGrid): GridHeader => {
   const header = grid.data.grid

@@ -1,13 +1,13 @@
-export { loadElevationGrid, gridFromData } from './grid.js'
-export type { ElevationGrid } from './grid.js'
+export { loadElevationGrid, gridFromData } from './grid/index.js'
+export type { ElevationGrid } from './grid/index.js'
 
-export { buildSurface, loadSurface, buildSurfaceFromData } from './surface.js'
+export { buildSurface, loadSurface, buildSurfaceFromData } from './surface/index.js'
 export type {
   ElevationSurface,
   SurfaceColour,
   SurfaceInfo,
   SurfaceOptions,
   LoadOptions,
-} from './surface.js'
+} from './surface/index.js'
 
-export { gridLayout } from './layout.js'
+export { gridLayout } from './layout/index.js'
