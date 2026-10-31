@@ -25,9 +25,12 @@ name: publish
 permissions:
   contents: read
 
-# Two tags pushed at once publish one after the other rather than at the same time.
+# Two tags pushed at once publish one after the other rather than at the same
+# time. The group is constant on purpose: keyed on the tag it would be one group
+# per tag, which serialises nothing, and two runs racing on the latest dist-tag
+# are last-write-wins.
 concurrency:
-  group: publish-${{ github.ref }}
+  group: publish
   cancel-in-progress: false
 
 jobs:
