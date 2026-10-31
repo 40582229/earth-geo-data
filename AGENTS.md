@@ -196,9 +196,33 @@ and both are on one line.
 
 **A shape with no runtime cannot be tested at runtime.** When the shape itself
 is the contract — the wire headers above — pin it with a compile-time check in
-the `.test.ts` beside it: `container.test.ts` compares `keyof FieldHeader` and
-friends against the keys the format defines, and `npm run typecheck` is what
-runs it. A field then cannot be added to a header without saying so.
+the `.test.ts` beside it: `container.test.ts` holds each header against a
+literal written out from the format, and `npm run typecheck` is what runs it. A
+field then cannot be added, removed, or given another type without saying so.
+
+**The check compares the shape, not the key names.** `Equal<Flatten<PartHeader>,
+WirePart>` sees `closed: boolean` become `closed: string`; a `keyof` comparison
+sees a key appear or disappear and nothing else. `Flatten` walks the composition
+away, one level of array included, because `Equal` reports two identical shapes
+as different while one of them is still an intersection — that is a property of
+the trick, not of the shape.
+
+**Break it once.** A check that cannot fail proves nothing: change one field on
+purpose, watch the compiler refuse the build, put it back. The same goes for a
+runtime test — empty the body of the thing it covers and watch it go red.
+
+**A cast is a claim, not a proof.** Outside a test that builds a value the type
+forbids on purpose, `src/` has three, all in `open.ts`, all the same claim: that
+`JSON.parse` returned what the type says. That is the edge and it is the only
+place one is allowed; `as const` is not a cast, and `layout.test.ts`'s
+`as unknown as ElevationGrid` is a refusal test earning its keep. Everywhere
+else `unknown` goes in and a checked type comes out, with the error naming the
+key that was wrong.
+
+**A union that is branched on ends in `casesHandled`.** `check()` narrows `kind`
+to `'lines'` once grid, polygons and points have returned, and
+`if (kind !== 'lines') casesHandled(kind)` is what turns a fifth kind into a
+build failure rather than a new kind validated as lines.
 
 ## Commands
 
@@ -226,8 +250,14 @@ half a gigabyte each.
   import three.js, or any renderer — output is typed arrays and nothing else.
 - **ESM only.** `"type": "module"`, and relative imports carry the `.js`
   extension (`./grid.js`, not `./grid`).
-- **Strict TypeScript**, `target: ES2022`, Node 18 and up. No `any` without a
-  reason; no non-null assertions in place of a check.
+- **Strict TypeScript**, `target: ES2022`, Node 18 and up, with
+  `exactOptionalPropertyTypes` on: a key that is absent and a key set to
+  `undefined` are different things on a wire. No `any` without a reason. No `!`
+  in place of a check — the twenty-five in `march.ts` are not that, each indexes
+  a typed array by a loop bound and the length is the proof. That is also why
+  `noUncheckedIndexedAccess` stays off: it would demand a `!` on thirty-eight
+  reads in `src/`, twenty-six of them in `ramp.ts`, and every one is an index
+  the loop bound already proves.
 - **The tests are the spec.** `npm test` checks numbers against an independent
   implementation, not just "it did not throw". If you change the tracer, the
   projection or the palette, a number moving is a decision you have to justify.

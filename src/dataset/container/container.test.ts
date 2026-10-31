@@ -11,33 +11,94 @@ import type {
 } from './container.types.js'
 
 /* The headers are built out of shared pieces; the envelope they describe is
-   not. These compile only while the pieces still put the same keys on the wire,
-   which is what the files in data/ were written with. */
-type KeysAre<Shape, Expected extends PropertyKey> =
-  [keyof Shape] extends [Expected]
-    ? ([Expected] extends [keyof Shape] ? true : false)
-    : false
+   not. Each line below compares a whole shape — keys, value types, and whether
+   a key may be absent — against a literal written from the format, so a field
+   that quietly changes type fails here rather than in the file it was read
+   from. `Flatten` walks the composition away first, one level of array
+   included: `Equal` compares a composed type against its own expansion and
+   says false, which is a property of the trick and not of the shape. */
+type Flatten<Shape> =
+  Shape extends readonly (infer Item)[] ? Flatten<Item>[]
+    : Shape extends object ? { [Key in keyof Shape]: Flatten<Shape[Key]> }
+      : Shape
+type Equal<Left, Right> =
+  (<T>() => T extends Left ? 1 : 2) extends (<T>() => T extends Right ? 1 : 2) ? true : false
+type Expect<Value extends true> = Value
 
-const partKeys: KeysAre<PartHeader, 'name' | 'offset' | 'count' | 'closed'> = true
-const ringKeys: KeysAre<RingHeader, 'offset' | 'count' | 'role'> = true
-const fieldKeys: KeysAre<
-  FieldHeader,
-  'name' | 'type' | 'byteOffset' | 'count' | 'scale' | 'offset' | 'unit'
-> = true
-const gridKeys: KeysAre<
-  GridHeader,
-  'width' | 'height' | 'layout' | 'rowZero' | 'columnZeroLon'
-  | 'longitudeSpan' | 'latitudeSpan' | 'type' | 'scale' | 'offset' | 'unit' | 'nodata'
-> = true
-const entryKeys: KeysAre<
-  EarthGeoDataIndexEntry,
-  'id' | 'path' | 'kind' | 'title' | 'topology' | 'width' | 'height' | 'unit'
-  | 'records' | 'bytes' | 'sourceBytes' | 'sha256' | 'licence' | 'attribution'
-  | 'retrieved' | 'fields' | 'stats' | 'band' | 'magnitudeLimit'
-> = true
+type WireFieldType =
+  | 'int8' | 'uint8'
+  | 'int16' | 'uint16'
+  | 'int32' | 'uint32'
+  | 'float32' | 'float64'
 
-test('the shared header pieces keep the keys the format has', () => {
-  assert.deepEqual([partKeys, ringKeys, fieldKeys, gridKeys, entryKeys], [true, true, true, true, true])
+type WirePart = {
+  name: string
+  offset: number
+  count: number
+  closed?: boolean
+}
+
+type WireRing = {
+  offset: number
+  count: number
+  role: 'outer' | 'hole'
+}
+
+type WireField = {
+  type: WireFieldType
+  scale: number
+  offset: number
+  name: string
+  byteOffset: number
+  count: number
+  unit?: string
+}
+
+type WireGrid = {
+  width: number
+  height: number
+  type: WireFieldType
+  scale: number
+  offset: number
+  layout: 'equirectangular'
+  rowZero: 'north'
+  columnZeroLon: number
+  longitudeSpan: number
+  latitudeSpan: number
+  unit: string
+  nodata: number | null
+}
+
+type WireEntry = {
+  id: string
+  path: string
+  kind: 'grid' | 'points' | 'lines' | 'polygons'
+  title: string
+  topology?: 'polyline' | 'segments'
+  width?: number
+  height?: number
+  unit?: string
+  records?: number
+  bytes: number
+  sourceBytes: number
+  sha256: string
+  fields?: { name: string; type: WireFieldType; unit: string | null }[]
+  stats?: Record<string, number>
+  band?: string
+  magnitudeLimit?: number
+  licence: string
+  attribution: string
+  retrieved: string
+}
+
+const partWire: Expect<Equal<Flatten<PartHeader>, WirePart>> = true
+const ringWire: Expect<Equal<Flatten<RingHeader>, WireRing>> = true
+const fieldWire: Expect<Equal<Flatten<FieldHeader>, WireField>> = true
+const gridWire: Expect<Equal<Flatten<GridHeader>, WireGrid>> = true
+const entryWire: Expect<Equal<Flatten<EarthGeoDataIndexEntry>, WireEntry>> = true
+
+test('the shared header pieces keep the shape the format has', () => {
+  assert.deepEqual([partWire, ringWire, fieldWire, gridWire, entryWire], [true, true, true, true, true])
 })
 
 test('the format id is the one the envelopes carry', () => {

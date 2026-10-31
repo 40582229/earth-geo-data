@@ -30,6 +30,10 @@ const littleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1
 
 export const formatId = 'earthGeoData/1'
 
+const casesHandled = (unhandled: never): never => {
+  throw new Error(`earthGeoData: unhandled case ${JSON.stringify(unhandled)}`)
+}
+
 /** Top-level keys the format defines. Everything else lands in `meta`. */
 const envelopeKeys = new Set([
   'format', 'id', 'kind', 'topology', 'title', 'source',
@@ -204,6 +208,9 @@ export class EarthGeoData {
       return
     }
 
+    // the union has four kinds; a fifth must not be read as lines
+    if (kind !== 'lines') casesHandled(kind)
+
     if (this.topology !== 'polyline' && this.topology !== 'segments') {
       fail(`kind is "lines" but topology is ${JSON.stringify(this.topology)}; it must be "polyline" or "segments"`)
     }
@@ -250,10 +257,7 @@ export class EarthGeoData {
     }
   }
 
-  field(name: string): NumericArray {
-    const cached = this.rawViews.get(name)
-    if (cached) return cached
-
+  private headerOf(name: string): FieldHeader {
     const header = this.headers.get(name)
     if (!header) {
       throw new Error(
@@ -261,6 +265,14 @@ export class EarthGeoData {
         `${[...this.headers.keys()].join(', ')}`,
       )
     }
+    return header
+  }
+
+  field(name: string): NumericArray {
+    const cached = this.rawViews.get(name)
+    if (cached) return cached
+
+    const header = this.headerOf(name)
     const type = types[header.type]
     const view = new type.array(this.bytes.buffer, this.bytes.byteOffset + header.byteOffset, header.count)
     this.rawViews.set(name, view)
@@ -271,20 +283,16 @@ export class EarthGeoData {
     const cached = this.scaledViews.get(name)
     if (cached) return cached
 
-    const header = this.headers.get(name)
-    if (!header) this.field(name) // throws with the field list
-
-    const fieldHeader = header as FieldHeader
+    const header = this.headerOf(name)
     const raw = this.field(name)
-    if (fieldHeader.type === 'float32' && fieldHeader.scale === 1 && fieldHeader.offset === 0) {
-      const alreadyScaled = raw as Float32Array
-      this.scaledViews.set(name, alreadyScaled)
-      return alreadyScaled
+    if (raw instanceof Float32Array && header.scale === 1 && header.offset === 0) {
+      this.scaledViews.set(name, raw)
+      return raw
     }
 
     const scaled = new Float32Array(raw.length)
     for (let index = 0; index < raw.length; index++) {
-      scaled[index] = raw[index] * fieldHeader.scale + fieldHeader.offset
+      scaled[index] = raw[index] * header.scale + header.offset
     }
     this.scaledViews.set(name, scaled)
     return scaled
