@@ -148,6 +148,28 @@ Anything you add to `data/` by hand is picked up by the next run and described
 from its own envelope, which is how `landcover-4096` survived being fetched by a
 different script.
 
+## Pull requests
+
+`main` takes changes only through a pull request, so every change starts on a
+branch:
+
+```bash
+git switch -c what-you-are-doing
+git commit -m "…"
+git push -u origin what-you-are-doing
+gh pr create --fill --draft
+```
+
+Open it as a **draft** and leave it a draft. Three clicks belong to the human and
+never to you:
+
+- **opening** anything other than a draft — `gh pr create --draft`, every time
+- **marking it ready for review** — that click is what runs the review workflow
+- **merging** — not the web button, not `gh pr merge`, not a push to `main`
+
+Stop at a pushed branch and a draft pull request, then say what you did and wait.
+The human marks it ready, reads the review, and merges it in the browser.
+
 ## Before you commit
 
 ```bash
