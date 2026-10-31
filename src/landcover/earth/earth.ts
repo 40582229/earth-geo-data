@@ -103,9 +103,14 @@ const paint = (metres: number, classId: number, latitude: number, resolved: Reso
   return mixed
 }
 
-/* The colour of a point, given everything that decides it: how high it is, what is on it, and how far from… */
+/* The colour of a point, given everything that decides it: how high it is, what
+   is on it, and how far from the equator. Every branch of paint returns a triple
+   the module refills, which is fine for the per-vertex `colourOf` below because
+   `buildSurface` copies each vertex before asking for the next one — but this is
+   the one-shot entry point, so it hands out a copy that a caller may keep. */
 export const earthColour = (metres: number, classId: number, latitude: number): Color3 => {
-  return paint(metres, classId, latitude, defaults)
+  const colour = paint(metres, classId, latitude, defaults)
+  return [colour[0], colour[1], colour[2]]
 }
 
 /* A `colourOf` for `buildSurface`: the rule above, wired to the two grids. */

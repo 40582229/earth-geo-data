@@ -231,7 +231,7 @@ npm install          # dev dependencies only; there are no runtime ones
 npm run clean        # removes dist/ and .test-dist/
 npm run build        # tsc -> dist/, with *.test.ts left out
 npm run typecheck    # tsc --noEmit over src/ and the tests beside it
-npm test             # builds dist/ and .test-dist/, then 110 checks on the data
+npm test             # builds dist/ and .test-dist/, then 112 checks on the data
 npm run prepare-data # fill data/ from a source folder (see below)
 ```
 
@@ -311,5 +311,5 @@ The human marks it ready, reads the review, and merges it in the browser.
 npm run typecheck && npm test
 ```
 
-All 110 checks pass, `data/` holds the four grids and nothing else, and the diff
+All 112 checks pass, `data/` holds the four grids and nothing else, and the diff
 contains no banner comments.

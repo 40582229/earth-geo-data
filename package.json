@@ -31,7 +31,7 @@
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "test": "npm run build && npm run build:test && node --test --test-concurrency=1 \".test-dist/**/*.test.js\"",
     "prepare-data": "node scripts/prepare-data.mjs",
-    "prepublishOnly": "npm run build && npm run build:test && node --test \".test-dist/**/*.test.js\""
+    "prepublishOnly": "npm run build && npm run build:test && node --test --test-concurrency=1 \".test-dist/**/*.test.js\""
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

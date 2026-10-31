@@ -5,7 +5,7 @@ import { elevationColor } from '../../colour/ramp/index.js'
 import { loadElevationGrid } from '../../elevation/grid/index.js'
 import { buildSurface } from '../../elevation/surface/index.js'
 import { loadLandCover } from '../grid/index.js'
-import { annualMeanCelsius, earthColours, snowLineMetres } from './earth.js'
+import { annualMeanCelsius, earthColour, earthColours, snowLineMetres } from './earth.js'
 
 const near = (actual: number, expected: number, tolerance: number): boolean =>
   Math.abs(actual - expected) <= tolerance
@@ -36,6 +36,24 @@ test('1,849 m at 60°', () => {
 
 test('and reaches sea level near 73°', () => {
   assert.ok(near(snowLineMetres(73), 0, 60), `${snowLineMetres(73).toFixed(0)} m`)
+})
+
+/* 255 is what some products write instead of a class over the sea. It has to
+   take the water branch: the snow blend is the one place where being merely
+   unclassified would show, because class 255 falls back to the water colour
+   anyway and only the blend tells the two paths apart. */
+test('a 255 cell is water, so snow cannot paint it white', () => {
+  assert.deepEqual([...earthColour(3000, 255, 70)], [...earthColour(3000, 17, 70)])
+})
+
+/* `paint` refills one triple instead of allocating per vertex, which is right
+   for the per-vertex path and wrong for this one: a caller that keeps the
+   colour must not have it changed by the next call. */
+test('a colour held across the next call does not change', () => {
+  const held = earthColour(744, 13, 23)
+  const before = [...held]
+  earthColour(3000, 16, 60)
+  assert.deepEqual([...held], before, 'earthColour handed out the triple it refills')
 })
 
 const grid = await loadElevationGrid('terrain-4096')

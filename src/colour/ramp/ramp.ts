@@ -510,7 +510,9 @@ const landColourTable = bakeElevationTable(firstLandMetres, highestMetres)
 // one triple, reused. A fresh array per vertex would be 8.4 million of them.
 const scratchColor: [number, number, number] = [0, 0, 0]
 
-/* The colour for a height, out of the baked table. */
+/* The colour for a height, out of the baked table. Returns `scratchColor` — the
+   one triple above, refilled on the next call — so read it, or copy it, before
+   asking for another height. */
 export const elevationColor = (metres: number): Color3 => {
   const underwater = metres < 0
   const table = underwater ? waterColourTable : landColourTable
