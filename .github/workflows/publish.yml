@@ -1,0 +1,108 @@
+name: publish
+
+# Publishing is triggered by the tag, not by a merge and not by a click here.
+#
+#   git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0
+#
+# A version on npm can never be reused, so the checks below run before anything
+# is uploaded: the tag has to be v plus exactly the version in package.json, and
+# the commit it points at has to be on main. Either being wrong stops the run.
+#
+# The first version, 0.1.0, had to be published by hand: trusted publishing is
+# configured on the package's page at npmjs.com, and there is no page until a
+# version is there. That is done, so from 0.1.1 on the tag is the only thing
+# needed — no npm token exists in this repository and none is used.
+#
+# Renaming this file later breaks the trusted publisher binding.
+
+"on":
+  push:
+    tags:
+      # Major, minor and patch, with room for -rc.1 and the like. A bare v1 or a
+      # v-next moving tag does not match, which is deliberate.
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+# Two tags pushed at once publish one after the other rather than at the same time.
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Optional brake: give this environment protection rules in Settings →
+    # Environments and the run waits for a human before the upload. Without any
+    # rules it is just a label.
+    environment: npm
+    permissions:
+      contents: read
+      # The token trusted publishing trades for a short-lived credential. There
+      # is no npm token in this repository and none is needed.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The tag has to be traced back through history to origin/main.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: The tag and package.json have to agree
+        id: version
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          tag=${GITHUB_REF_NAME#v}
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} says $tag, package.json says $version"
+            exit 1
+          fi
+          # 0.2.0-rc.1 is a preview: it goes to the "next" dist-tag so plain
+          # npm install keeps handing people the last release.
+          case "$version" in
+            *-*) dist_tag=next ;;
+            *)   dist_tag=latest ;;
+          esac
+          echo "Publishing $version under the $dist_tag tag"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$dist_tag" >> "$GITHUB_OUTPUT"
+
+      - name: The tag has to be on main
+        run: |
+          set -euo pipefail
+          # A tag checkout has no origin/main, and naming the refspec keeps the
+          # remote-tracking branch from being a maybe.
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::${GITHUB_REF_NAME} points at a commit that is not on main"
+            exit 1
+          fi
+          echo "$GITHUB_SHA is on main"
+
+      - run: npm ci
+      - run: npm test
+
+      # npm before 11 cannot do the trusted publishing exchange, and 22 still
+      # bundles npm 10.
+      - run: npm install -g npm@^11
+
+      - name: What would ship
+        run: npm pack --dry-run
+
+      - name: That version must not exist yet
+        run: |
+          set -euo pipefail
+          if npm view "earth-geo-data@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "::error::${{ steps.version.outputs.version }} is already on npm and cannot be replaced"
+            exit 1
+          fi
+
+      # prepublishOnly runs the build and all the checks again inside this step.
+      # That is the point: the tarball cannot escape the tests.
+      - run: npm publish --provenance --tag "${{ steps.version.outputs.dist_tag }}"
