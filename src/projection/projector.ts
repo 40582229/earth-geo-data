@@ -56,7 +56,7 @@ export type Projector = {
 export function projector(view: Partial<GlobeView> = {}): Projector {
   const resolvedView: GlobeView = { ...defaultView, ...view }
   const relief = resolvedView.heightExaggeration / earthRadiusM
-  const spinRadians = resolvedView.surface === 'sphere' ? resolvedView.longitudeOffset * radians : 0
+  const longitudeOffsetRadians = resolvedView.surface === 'sphere' ? resolvedView.longitudeOffset * radians : 0
 
   if (resolvedView.surface === 'plane') {
     const perDegree = resolvedView.radius / 180
@@ -100,7 +100,7 @@ export function projector(view: Partial<GlobeView> = {}): Projector {
     write(target, offset, longitude, latitude, metres = 0): number {
       const radiusAtHeight = resolvedView.radius * (1 + metres * relief)
       const latitudeRadians = latitude * radians
-      const longitudeRadians = longitude * radians + spinRadians
+      const longitudeRadians = longitude * radians + longitudeOffsetRadians
       const cosLatitude = Math.cos(latitudeRadians)
       target[offset] = radiusAtHeight * cosLatitude * Math.cos(longitudeRadians)
       target[offset + 1] = radiusAtHeight * Math.sin(latitudeRadians)
