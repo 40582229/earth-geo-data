@@ -1,0 +1,165 @@
+name: pr review
+
+"on":
+  pull_request:
+    types: [ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  DEEPSEEK_MODEL: deepseek-flash
+  # Every code file in the repo, deleted and re-added, is about 260,000 characters.
+  DIFF_CHARACTER_LIMIT: 300000
+  SNAPSHOT_CHARACTER_LIMIT: 200000
+  TEST_OUTPUT_CHARACTER_LIMIT: 4000
+  # Set to "true" and add the review check to the ruleset to let a BLOCK verdict fail the merge.
+  BLOCK_ON_VERDICT: "false"
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+      BASE_BRANCH: ${{ github.base_ref }}
+      PULL_REQUEST_TITLE: ${{ github.event.pull_request.title }}
+      PULL_REQUEST_BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: npm ci
+
+      - name: Run the tests
+        id: tests
+        continue-on-error: true
+        run: npm test > test-output.txt 2>&1
+
+      - name: Report a missing key instead of failing
+        if: env.DEEPSEEK_API_KEY == ''
+        run: echo "DEEPSEEK_API_KEY is not a repository secret yet, so the pull request was not reviewed."
+
+      - name: Ask DeepSeek for a review
+        if: env.DEEPSEEK_API_KEY != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TEST_OUTCOME: ${{ steps.tests.outcome }}
+        run: |
+          set -euo pipefail
+
+          exclude_data=':(exclude)data/**'
+          exclude_dist=':(exclude)dist/**'
+          exclude_lock=':(exclude)package-lock.json'
+
+          # The snapshot is the same for every pull request, so it goes first and caches.
+          : > repository-snapshot.txt
+          git ls-files src test scripts AGENTS.md package.json tsconfig.json \
+            | while IFS= read -r repository_path; do
+                [ -f "$repository_path" ] || continue
+                printf '\n=== %s ===\n' "$repository_path" >> repository-snapshot.txt
+                cat "$repository_path" >> repository-snapshot.txt
+              done
+          head -c "$SNAPSHOT_CHARACTER_LIMIT" repository-snapshot.txt > snapshot-excerpt.txt
+
+          if [ "$TEST_OUTCOME" = "success" ]; then
+            printf 'The test suite passed.\n' > test-summary.txt
+          else
+            printf 'The test suite failed. Its output, last %s characters:\n' \
+              "$TEST_OUTPUT_CHARACTER_LIMIT" > test-summary.txt
+            tail -c "$TEST_OUTPUT_CHARACTER_LIMIT" test-output.txt >> test-summary.txt
+          fi
+
+          git diff --name-only "origin/$BASE_BRANCH...HEAD" -- . \
+            "$exclude_data" "$exclude_dist" "$exclude_lock" > changed-files.txt
+          if [ ! -s changed-files.txt ]; then
+            echo "Nothing changed outside data/ and dist/, so there is nothing to review."
+            exit 0
+          fi
+
+          : > diff-excerpt.txt
+          used_characters=0
+          omitted_files=''
+          while IFS= read -r changed_path; do
+            git diff --unified=3 "origin/$BASE_BRANCH...HEAD" -- "$changed_path" > one-file.diff
+            one_file_characters=$(wc -c < one-file.diff)
+            if [ "$used_characters" -eq 0 ] \
+              || [ $((used_characters + one_file_characters)) -le "$DIFF_CHARACTER_LIMIT" ]; then
+              cat one-file.diff >> diff-excerpt.txt
+              used_characters=$((used_characters + one_file_characters))
+            else
+              omitted_files="$omitted_files $changed_path"
+            fi
+          done < changed-files.txt
+          if [ -n "$omitted_files" ]; then
+            printf '\nLeft out, the diff reached its %s character limit:%s\n' \
+              "$DIFF_CHARACTER_LIMIT" "$omitted_files" >> diff-excerpt.txt
+          fi
+          iconv -c -f UTF-8 -t UTF-8 diff-excerpt.txt > diff-excerpt-clean.txt
+          mv diff-excerpt-clean.txt diff-excerpt.txt
+
+          {
+            printf '%s\n\n' "You review pull requests for earth-geo-data, a TypeScript package that turns elevation and land-cover grids into typed arrays. The tests are the spec, so a change that moves a number is wrong even if it compiles."
+            printf '%s\n\n' "Report only what is worth fixing: bugs, wrong numbers, API misuse, type errors, conventions broken, tests that do not prove the claim. Check the callers in the snapshot before saying a change is safe or unsafe. No praise, no restating the diff, no file paths you did not see. Under 300 words, one line per point, each starting with the file path."
+            printf '%s\n\n' "If the diff says files were left out, name them as things you could not see."
+            printf '%s\n\n' "End with one line, exactly VERDICT: PASS or VERDICT: BLOCK."
+            printf 'The repository, minus data/ and dist/:\n%s\n' "$(cat snapshot-excerpt.txt)"
+          } > system-prompt.txt
+
+          {
+            printf 'Title: %s\n\n' "$PULL_REQUEST_TITLE"
+            printf 'Body:\n%s\n\n' "$PULL_REQUEST_BODY"
+            printf 'Files changed:\n%s\n\n' "$(git diff --stat "origin/$BASE_BRANCH...HEAD" -- . "$exclude_data" "$exclude_dist" "$exclude_lock")"
+            printf 'Test result:\n%s\n\n' "$(cat test-summary.txt)"
+            printf 'Diff:\n%s\n' "$(cat diff-excerpt.txt)"
+          } > user-prompt.txt
+
+          jq -n --arg model "$DEEPSEEK_MODEL" \
+                --rawfile system_prompt system-prompt.txt \
+                --rawfile user_prompt user-prompt.txt \
+            '{model: $model,
+              messages: [{role: "system", content: $system_prompt},
+                         {role: "user", content: $user_prompt}],
+              thinking: {type: "disabled"},
+              temperature: 0.2,
+              max_tokens: 2000}' > request.json
+
+          http_status=$(curl -sS -o api-response.json -w '%{http_code}' \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+            -H 'Content-Type: application/json' \
+            --data-binary @request.json \
+            https://api.deepseek.com/chat/completions)
+          echo "DeepSeek answered with HTTP $http_status"
+          if [ "$http_status" != "200" ]; then
+            cat api-response.json
+            exit 1
+          fi
+
+          jq -r '.choices[0].message.content' api-response.json > review.md
+          {
+            printf '**DeepSeek review** (%s)\n\n' "$DEEPSEEK_MODEL"
+            cat review.md
+          } > review-comment.md
+          gh pr comment "$PULL_REQUEST_NUMBER" --body-file review-comment.md
+
+      - name: Fail the check when the tests failed
+        if: env.DEEPSEEK_API_KEY != '' && steps.tests.outcome == 'failure' && !contains(github.event.pull_request.labels.*.name, 'review-override')
+        run: |
+          echo "::error::npm test failed, so this pull request cannot merge."
+          exit 1
+
+      - name: Fail the check when the verdict is BLOCK
+        if: env.DEEPSEEK_API_KEY != '' && env.BLOCK_ON_VERDICT == 'true' && !contains(github.event.pull_request.labels.*.name, 'review-override')
+        run: |
+          if grep -q 'VERDICT: BLOCK' review.md; then exit 1; fi
