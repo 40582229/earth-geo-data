@@ -31,8 +31,11 @@ geometry.setAttribute('position', new BufferAttribute(lines.positions, 3))  // L
 
 Nine grids, 345 MB of JSON, 259 MB of payload.
 
-The grids are **not in this repository**. They are generated rather than written
-by hand, and the largest is past what GitHub will take in a single file.
+Four of them are small enough to commit and **are in this repository**:
+`terrain-4096`, both `etopo2022-*` surfaces, and `landcover-4096` — 78 MB
+together, which is what a clone costs you. The other five are generated rather
+than written by hand, and one of them is past what GitHub will take in a single
+file.
 
 ```bash
 EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data   # the elevation grids
@@ -45,7 +48,7 @@ package's own `data/` — an `earthGeoData` manifest and the files it lists — 
 either order. The manifest is rebuilt from whatever is on disk and hashed as it
 is, and `npm test` checks the two against each other.
 
-The table below is what you get once both have run.
+The table below is the full nine, which is what you get once both have run.
 
 | id | shape | cell | what it is |
 |---|---|---|---|

@@ -9,6 +9,9 @@
    so a change to the tracer that alters a single case shows up here.
    ════════════════════════════════════════════════════════════════════════════ */
 
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import {
   annualMeanCelsius, buildContours, buildSurface, datasetEntry, datasetIndex,
   earthColour, earthColours, EARTH_RADIUS_M, elevationColor, HYPSOMETRIC_LEVELS,
@@ -41,6 +44,31 @@ const time = (label, fn) => {
   const started = performance.now()
   const value = fn()
   return [value, performance.now() - started, label]
+}
+
+/* ── is the data here at all? ─────────────────────────────────────────────── */
+
+/* The repository carries four of the nine grids — the ones that fit under
+   GitHub's file limit. Everything below reads the other five, so say which are
+   missing once, here, instead of dying on whichever one is opened first. */
+
+{
+  const index = await datasetIndex()
+  const data = fileURLToPath(new URL('../data/', import.meta.url))
+  const missing = index.datasets
+    .filter((entry) => !existsSync(data + entry.path))
+    .map((entry) => entry.id)
+
+  if (missing.length) {
+    console.error(
+      `\n${missing.length} of ${index.datasets.length} datasets are not in data/: ` +
+      `${missing.join(', ')}\n\n` +
+      'These are generated, not committed. Produce them with:\n\n' +
+      '  EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data\n\n' +
+      'where that folder holds an earthGeoData index.json and the files it lists.\n',
+    )
+    process.exit(1)
+  }
 }
 
 /* ── the manifest ─────────────────────────────────────────────────────────── */

@@ -1,0 +1,222 @@
+{
+  "format": "earthGeoData-index/1",
+  "generated": "2026-10-26",
+  "root": "./",
+  "totals": {
+    "datasets": 9,
+    "bytes": 344884761,
+    "megabytes": 344.9,
+    "records": 0
+  },
+  "licences": {
+    "public domain (NOAA / USGS / CCOM)": [
+      "etopo2022-bed-4096",
+      "etopo2022-surface-4096"
+    ],
+    "public domain / CC0 (Tilezen)": [
+      "terrain-1024",
+      "terrain-10800",
+      "terrain-2048",
+      "terrain-4096",
+      "terrain-5120",
+      "terrain-7200"
+    ],
+    "public domain (NASA EOSDIS)": [
+      "landcover-4096"
+    ]
+  },
+  "byKind": {
+    "grid": 9
+  },
+  "datasets": [
+    {
+      "id": "etopo2022-bed-4096",
+      "path": "etopo/etopo2022-bed-4096.json",
+      "kind": "grid",
+      "title": "ETOPO 2022 global relief — bedrock, 4096x2048",
+      "width": 4096,
+      "height": 2048,
+      "unit": "m",
+      "bytes": 22370910,
+      "sourceBytes": 16777216,
+      "sha256": "b7b6c1402cec296a6af1123fee4f215b8c7c24b9a51aee25e9b177db51417785",
+      "licence": "public domain (NOAA / USGS / CCOM)",
+      "attribution": "ETOPO 2022, NOAA National Centers for Environmental Information (NCEI)",
+      "retrieved": "2026-10-14",
+      "stats": {
+        "min": -10688,
+        "max": 7064,
+        "mean": -2128.240284204483,
+        "count": 8388608
+      }
+    },
+    {
+      "id": "etopo2022-surface-4096",
+      "path": "etopo/etopo2022-surface-4096.json",
+      "kind": "grid",
+      "title": "ETOPO 2022 global relief — ice surface, 4096x2048",
+      "width": 4096,
+      "height": 2048,
+      "unit": "m",
+      "bytes": 22370911,
+      "sourceBytes": 16777216,
+      "sha256": "0fe5d4db7848c3f01d2c82743587f8a5dc3f40a2871c7cdede07bc745e3a2c1b",
+      "licence": "public domain (NOAA / USGS / CCOM)",
+      "attribution": "ETOPO 2022, NOAA National Centers for Environmental Information (NCEI)",
+      "retrieved": "2026-10-14",
+      "stats": {
+        "min": -10688,
+        "max": 7064,
+        "mean": -1896.7995374202728,
+        "count": 8388608
+      }
+    },
+    {
+      "id": "terrain-1024",
+      "path": "terrain/terrain-1024.json",
+      "kind": "grid",
+      "title": "Terrarium elevation, 1024x512 (0.3516° per cell)",
+      "width": 1024,
+      "height": 512,
+      "unit": "m",
+      "bytes": 1398859,
+      "sourceBytes": 1048576,
+      "sha256": "2e857c275fe6034c3f9f1eae90578c95a6f9a85732a7dd4126c80db0cb0b1132",
+      "licence": "public domain / CC0 (Tilezen)",
+      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
+      "retrieved": "2026-10-14",
+      "stats": {
+        "min": -9850,
+        "max": 6751,
+        "mean": -2094.6351833343506,
+        "count": 524288
+      }
+    },
+    {
+      "id": "terrain-10800",
+      "path": "terrain/terrain-10800.json",
+      "kind": "grid",
+      "title": "Terrarium elevation, 10800x5400 (0.0333° per cell)",
+      "width": 10800,
+      "height": 5400,
+      "unit": "m",
+      "bytes": 155520764,
+      "sourceBytes": 116640000,
+      "sha256": "5e471d85eb4dcf242c688c23baa79ee5e9638cafc8e8f90dbd5cdffa8cbb3ab4",
+      "licence": "public domain / CC0 (Tilezen)",
+      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
+      "retrieved": "2026-10-21",
+      "stats": {
+        "min": -10742,
+        "max": 7992,
+        "mean": -2095.232051440329,
+        "count": 58320000
+      }
+    },
+    {
+      "id": "terrain-2048",
+      "path": "terrain/terrain-2048.json",
+      "kind": "grid",
+      "title": "Terrarium elevation, 2048x1024 (0.1758° per cell)",
+      "width": 2048,
+      "height": 1024,
+      "unit": "m",
+      "bytes": 5593167,
+      "sourceBytes": 4194304,
+      "sha256": "ba5ba3726bdf7183f816cd0b62f08ecdecd2cd727bc230d69057d0043c4e21ca",
+      "licence": "public domain / CC0 (Tilezen)",
+      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
+      "retrieved": "2026-10-14",
+      "stats": {
+        "min": -10615,
+        "max": 6729,
+        "mean": -2094.8242721557617,
+        "count": 2097152
+      }
+    },
+    {
+      "id": "terrain-4096",
+      "path": "terrain/terrain-4096.json",
+      "kind": "grid",
+      "title": "Terrarium elevation, 4096x2048 (0.0879° per cell)",
+      "width": 4096,
+      "height": 2048,
+      "unit": "m",
+      "bytes": 22370383,
+      "sourceBytes": 16777216,
+      "sha256": "05fb24dab3692cd3bc158e41fac2c238d85910e40a22246a87f7f0a46e37efad",
+      "licence": "public domain / CC0 (Tilezen)",
+      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
+      "retrieved": "2026-10-14",
+      "stats": {
+        "min": -10593,
+        "max": 7320,
+        "mean": -2095.288790345192,
+        "count": 8388608
+      }
+    },
+    {
+      "id": "terrain-5120",
+      "path": "terrain/terrain-5120.json",
+      "kind": "grid",
+      "title": "Terrarium elevation, 5120x2560 (0.0703° per cell)",
+      "width": 5120,
+      "height": 2560,
+      "unit": "m",
+      "bytes": 34953297,
+      "sourceBytes": 26214400,
+      "sha256": "55a76b1ca45373f195e72a81e237efc124190baec29d694be5f99bf3f4b758be",
+      "licence": "public domain / CC0 (Tilezen)",
+      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
+      "retrieved": "2026-10-14",
+      "stats": {
+        "min": -10615,
+        "max": 7490,
+        "mean": -2095.5096878814697,
+        "count": 13107200
+      }
+    },
+    {
+      "id": "terrain-7200",
+      "path": "terrain/terrain-7200.json",
+      "kind": "grid",
+      "title": "Terrarium elevation, 7200x3600 (0.0500° per cell)",
+      "width": 7200,
+      "height": 3600,
+      "unit": "m",
+      "bytes": 69120760,
+      "sourceBytes": 51840000,
+      "sha256": "a0972b3ba20d7386487cb0f4c667b2009515a8ddacab21cf186c80440fa2b3b8",
+      "licence": "public domain / CC0 (Tilezen)",
+      "attribution": "Elevation tiles by Mapzen/Tilezen, via the AWS Open Data program",
+      "retrieved": "2026-10-14",
+      "stats": {
+        "min": -10689,
+        "max": 7573,
+        "mean": -2095.676255594136,
+        "count": 25920000
+      }
+    },
+    {
+      "id": "landcover-4096",
+      "path": "landcover/landcover-4096.json",
+      "kind": "grid",
+      "title": "MODIS IGBP land cover, 4096x2048 (0.0879° per cell)",
+      "width": 4096,
+      "height": 2048,
+      "unit": "class",
+      "bytes": 11185710,
+      "sourceBytes": 8388608,
+      "sha256": "b8781f252a18fb8600b668375f1c4f38cd4d5f40867eb14ba6dd07ac331e0d3e",
+      "licence": "public domain (NASA EOSDIS)",
+      "attribution": "MODIS Land Cover Type (MCD12Q1), NASA LP DAAC, via NASA GIBS",
+      "retrieved": "2026-10-26",
+      "stats": {
+        "min": 1,
+        "max": 17,
+        "mean": 15.06943929195404,
+        "count": 8388608
+      }
+    }
+  ]
+}
