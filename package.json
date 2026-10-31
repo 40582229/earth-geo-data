@@ -1,6 +1,6 @@
 {
   "name": "earth-geo-data",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Elevation data and dependency-free loaders: a grid becomes a globe or a flat map, and its height lines come out as vectors.",
   "type": "module",
   "license": "Apache-2.0",
