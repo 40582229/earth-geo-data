@@ -35,7 +35,7 @@ test('the file matches the manifest hash', async () => {
 })
 
 test('a dataset that is not here says so', async () => {
-  await assert.rejects(loadElevationGrid('ne-110m-land'), /no dataset/)
+  await assert.rejects(loadElevationGrid('ne-50m-land'), /no dataset/)
 })
 
 test('terrain-4096 decodes to one height per cell', () => {

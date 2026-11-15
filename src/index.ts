@@ -1,5 +1,5 @@
-/* earth-geo-data — a grid becomes a surface, its height lines become vectors,
-   and the ground takes the colour of what grows on it.
+/* earth-geo-data — a grid becomes a surface, its height lines and coastlines
+   become vectors, and the ground takes the colour of what grows on it.
 
    No renderer is imported; everything comes back as typed arrays.
 
@@ -12,4 +12,5 @@ export * from './colour/index.js'
 export * from './source/index.js'
 export * from './elevation/index.js'
 export * from './contours/index.js'
+export * from './boundaries/index.js'
 export * from './landcover/index.js'

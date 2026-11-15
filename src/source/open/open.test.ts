@@ -8,24 +8,30 @@ import { datasetEntry, datasetIndex, isPath, listDatasets } from './open.js'
 
 const index = await datasetIndex()
 
-test('four datasets ship', () => {
-  assert.equal(index.datasets.length, 4)
+test('five datasets ship', () => {
+  assert.equal(index.datasets.length, 5)
 })
 
-test('every one is a grid', () => {
-  assert.ok(index.datasets.every((entry) => entry.kind === 'grid'))
+test('four of them are grids and the fifth is land polygons', () => {
+  assert.deepEqual(
+    [...new Set(index.datasets.map((entry) => entry.kind))].sort(),
+    ['grid', 'polygons'],
+  )
 })
 
-test('one Terrarium grid, both ETOPO surfaces, one class grid', () => {
+test('one Terrarium grid, both ETOPO surfaces, one class grid, the land polygons', () => {
   assert.equal(
     index.datasets.map((entry) => entry.id).sort().join(','),
-    ['etopo2022-bed-4096', 'etopo2022-surface-4096', 'landcover-4096', 'terrain-4096'].join(','),
+    ['etopo2022-bed-4096', 'etopo2022-surface-4096', 'landcover-4096', 'ne-110m-land', 'terrain-4096'].join(','),
   )
 })
 
 test('exactly one grid is not in metres', () => {
   assert.equal(
-    index.datasets.filter((entry) => entry.unit !== 'm').map((entry) => `${entry.id}:${entry.unit}`).join(','),
+    index.datasets
+      .filter((entry) => entry.kind === 'grid' && entry.unit !== 'm')
+      .map((entry) => `${entry.id}:${entry.unit}`)
+      .join(','),
     'landcover-4096:class',
   )
 })
@@ -42,5 +48,5 @@ test('every dataset the manifest lists is on disk', () => {
 test('an id is not a path, and a path is', async () => {
   assert.equal(isPath('terrain-4096'), false)
   assert.equal(isPath('terrain/terrain-4096.json'), true)
-  assert.equal((await listDatasets()).length, 4)
+  assert.equal((await listDatasets()).length, 5)
 })

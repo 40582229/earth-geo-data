@@ -29,7 +29,7 @@ geometry.setAttribute('position', new BufferAttribute(lines.positions, 3))  // L
 
 ## What ships
 
-Four grids, 78 MB of JSON, 59 MB of payload.
+Four grids and one vector dataset, 78.4 MB of JSON, 59 MB of payload.
 
 | id | shape | cell | what it is |
 |---|---|---|---|
@@ -38,10 +38,13 @@ Four grids, 78 MB of JSON, 59 MB of payload.
 | `etopo2022-bed-4096` | 4096×2048 | 0.088° | the rock underneath it |
 | `landcover-4096` | 4096×2048 | 0.088° | what is growing on it — see below |
 
-All four are registered to each other: same 4096×2048 layout, same cell, same
-row zero. Subtract bed from surface and you have ice thickness.
+All four grids are registered to each other: same 4096×2048 layout, same cell,
+same row zero. Subtract bed from surface and you have ice thickness.
 
-They are in the repository, so cloning is all you need. The finer Terrarium
+The vector dataset is `ne-110m-land`: Natural Earth's 110m land polygons — 127
+polygons, 128 rings, 5,143 points — for `buildBoundaries` below.
+
+All of them are in the repository, so cloning is all you need. The finer Terrarium
 resolutions exist — 5120, 7200, 10800 — and `npm run prepare-data -- --all`
 copies them out of a source folder if you want them locally:
 
@@ -148,6 +151,23 @@ The default levels are uneven on purpose: −500, −1000, −2000, −3000, −
 6000 on land. Most of the planet is abyssal plain and most of what people look at
 is under 2 km, so evenly spaced lines would spend themselves in the wrong places.
 
+## Land outlines
+
+```js
+const land   = await openDataset('ne-110m-land')
+const coasts = buildBoundaries(land, { view: surface.view })
+```
+
+Every ring of every polygon, as line segments: two vertices each, one flat
+buffer, 5,005 of them out of 5,143 points. A ring that repeats its first point
+does not get a closing segment twice, and nothing is drawn across the
+antimeridian — Antarctica's ring jumps from 180° to −180° at the pole, and a
+plane view would draw that as a line across the whole map.
+
+`view` is the same one a surface carries, so `{ view: surface.view }` lands the
+outlines on the terrain rather than on a sphere of the default size, 500 m above
+it: enough not to z-fight, too little to see.
+
 ## Two entry styles
 
 ```js
@@ -159,6 +179,7 @@ or, one loader at a time:
 ```js
 import { loadElevationGrid } from 'earth-geo-data/elevation'
 import { buildContours }     from 'earth-geo-data/contours'
+import { buildBoundaries }   from 'earth-geo-data/boundaries'
 import { projector }         from 'earth-geo-data/projection'
 import { elevationColor }    from 'earth-geo-data/colour'
 import { loadLandCover }     from 'earth-geo-data/landcover'

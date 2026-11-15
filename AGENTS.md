@@ -99,6 +99,7 @@ that way; a change that doubles it will be sent back.
 | `src/colour/` | the elevation ramp and the land-cover palette |
 | `src/elevation/` | a grid becomes a surface (globe or flat map) |
 | `src/contours/` | marching squares, height lines out of a grid |
+| `src/boundaries/` | rings out of a polygon dataset, as line segments |
 | `src/landcover/` | a class grid, and the temperature blend that paints it |
 
 Each folder has an `index.ts` barrel; import through it, not through the files
@@ -231,7 +232,7 @@ npm install          # dev dependencies only; there are no runtime ones
 npm run clean        # removes dist/ and .test-dist/
 npm run build        # tsc -> dist/, with *.test.ts left out
 npm run typecheck    # tsc --noEmit over src/ and the tests beside it
-npm test             # builds dist/ and .test-dist/, then 112 checks on the data
+npm test             # builds dist/ and .test-dist/, then 123 checks on the data
 npm run prepare-data # fill data/ from a source folder (see below)
 ```
 
@@ -266,9 +267,10 @@ half a gigabyte each.
 
 ## Data
 
-Four grids ship, 78 MB, all of them committed: `terrain-4096`, both
-`etopo2022-4096` surfaces and `landcover-4096`. The finer Terrarium resolutions
-are listed in `.gitignore` and are opt-in:
+Four grids and the land polygons ship, 78.4 MB, all of them committed:
+`terrain-4096`, both `etopo2022-4096` surfaces, `landcover-4096` and
+`boundaries/ne-110m-land`. The finer Terrarium resolutions are listed in
+`.gitignore` and are opt-in:
 
 ```bash
 EARTHGEO_SOURCE=/path/to/earthGeoData npm run prepare-data -- --all
@@ -311,5 +313,5 @@ The human marks it ready, reads the review, and merges it in the browser.
 npm run typecheck && npm test
 ```
 
-All 112 checks pass, `data/` holds the four grids and nothing else, and the diff
-contains no banner comments.
+All 123 checks pass, `data/` holds the four grids, the land polygons and nothing
+else, and the diff contains no banner comments.
