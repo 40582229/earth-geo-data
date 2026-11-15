@@ -18,6 +18,7 @@
     "./colour": { "types": "./dist/colour/index.d.ts", "default": "./dist/colour/index.js" },
     "./elevation": { "types": "./dist/elevation/index.d.ts", "default": "./dist/elevation/index.js" },
     "./contours": { "types": "./dist/contours/index.d.ts", "default": "./dist/contours/index.js" },
+    "./boundaries": { "types": "./dist/boundaries/index.d.ts", "default": "./dist/boundaries/index.js" },
     "./landcover": { "types": "./dist/landcover/index.d.ts", "default": "./dist/landcover/index.js" },
     "./source": { "types": "./dist/source/index.d.ts", "default": "./dist/source/index.js" },
     "./data/*": "./data/*",

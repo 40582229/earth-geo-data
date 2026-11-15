@@ -1,11 +1,11 @@
 {
   "format": "earthGeoData-index/1",
-  "generated": "2026-10-31",
+  "generated": "2026-11-15",
   "root": "./",
   "totals": {
-    "datasets": 4,
-    "bytes": 78297914,
-    "megabytes": 78.3,
+    "datasets": 5,
+    "bytes": 78361782,
+    "megabytes": 78.4,
     "records": 0
   },
   "licences": {
@@ -16,12 +16,16 @@
     "public domain / CC0 (Tilezen)": [
       "terrain-4096"
     ],
+    "public domain (Natural Earth)": [
+      "ne-110m-land"
+    ],
     "public domain (NASA EOSDIS)": [
       "landcover-4096"
     ]
   },
   "byKind": {
-    "grid": 4
+    "grid": 4,
+    "polygons": 1
   },
   "datasets": [
     {
@@ -86,6 +90,18 @@
         "mean": -2095.288790345192,
         "count": 8388608
       }
+    },
+    {
+      "id": "ne-110m-land",
+      "path": "boundaries/ne-110m-land.json",
+      "kind": "polygons",
+      "title": "Land polygons, Natural Earth 110m (1:110,000,000)",
+      "bytes": 63868,
+      "sourceBytes": 41144,
+      "sha256": "1b8760b8b3caf703e786322c0c167864af5e3a42a198a95e2869c79ea5b454da",
+      "licence": "public domain (Natural Earth)",
+      "attribution": "Made with Natural Earth. Free vector and raster map data @ naturalearthdata.com.",
+      "retrieved": "2026-10-14"
     },
     {
       "id": "landcover-4096",
