@@ -71,6 +71,38 @@ lands on a surface built with the same view and not otherwise. Pass the same
 
 Other knobs: `radius`, `heightExaggeration`, `longitudeOffset`.
 
+## Putting something on it
+
+A lat/lon is a place; a marker also needs to know which way is up and which way
+is north. `frame` writes nine numbers — up, north, east, three each — and
+`toQuaternion` turns them into the four an engine takes:
+
+```js
+import { projector, toQuaternion } from 'earth-geo-data'
+
+const projection = projector(surface.view)   // the view the surface was built with
+const point = new Float32Array(3)
+const frame = new Float32Array(9)
+projection.write(point, 0, -0.12, 51.5)     // longitude first, then latitude
+projection.frame(frame, 0, -0.12, 51.5)
+
+const spin = new Float32Array(4)
+toQuaternion(spin, 0, frame)                // x, y, z, w — right-handed, Y up
+```
+
+`'y-up'`, the default, gives the asset's +Y the ground normal and its −Z the
+north: a model standing on the surface, which is where three.js already points
+it. Pass `'z-up'` for something that lies flat, like a `PlaneGeometry` decal —
+then +Z is the normal and text still reads the right way round, because east
+stays to the right in both.
+
+The poles are the one place the question has no answer: there is no north at
+90°, so it falls back to the direction longitude happens to give — finite and
+square in every axis, rather than a NaN in the matrix.
+
+The view decides the frame, exactly as it decides the surface. Pass the same one
+to both, or your marker stands on a globe that is not the one on screen.
+
 ## The colour of the ground
 
 By default a surface is coloured by height, which makes a relief map: green

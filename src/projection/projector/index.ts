@@ -5,6 +5,7 @@ export {
   earthRadiusM,
   defaultView,
   defaultLiftM,
+  toQuaternion,
 } from './projector.js'
 
-export type { GlobeView, Projector, ElevationSampler, Surface } from './projector.types.js'
+export type { Axes, GlobeView, Projector, ElevationSampler, Surface } from './projector.types.js'
